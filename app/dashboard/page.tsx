@@ -66,10 +66,19 @@ export default function DashboardPage() {
           <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>Lighthouse Ledger</span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{session.email}</span>
-          <button type="button" onClick={signOut} className="btn-secondary" style={{ padding: '0.5rem 0.75rem', fontSize: '0.875rem' }}>
-            Sign out
-          </button>
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+            {GUEST_MODE_ENABLED ? 'Guest session' : session?.email ?? ''}
+          </span>
+          {!GUEST_MODE_ENABLED && (
+            <button
+              type="button"
+              onClick={signOut}
+              className="btn-secondary"
+              style={{ padding: '0.4rem 0.8rem' }}
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </header>
       <h1 className="heading">Dashboard</h1>

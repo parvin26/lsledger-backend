@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getAccessToken } from '@/lib/supabaseClient'
 import * as api from '@/lib/ledgerApi'
 import type { ApiError } from '@/lib/apiClient'
+import { GUEST_MODE_ENABLED } from '@/lib/featureFlags'
 
 function AssessmentForm() {
   const router = useRouter()

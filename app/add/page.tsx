@@ -52,7 +52,12 @@ function AddForm() {
     setEligibilityWarning(null)
     setLoading(true)
     try {
-      const token = await getAccessToken()
+      const token = GUEST_MODE_ENABLED ? null : await getAccessToken()
+      if (!GUEST_MODE_ENABLED && !token) {
+        router.replace('/login')
+        setLoading(false)
+        return
+      }
       await api.addEvidence(token, { entry_id: entryId, evidence_type: evidenceType, content: trimmedContent })
       await api.saveIntent(token, { entry_id: entryId, intent_prompt: trimmedIntent })
       const analysis = await api.analyzeEntry(token, entryId)

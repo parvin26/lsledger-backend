@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { validateAuthToken } from '@/lib/auth'
+import { getUserIdForRequest, GuestConfigError } from '@/lib/auth'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { SaveIntentRequest, SaveIntentResponse, ErrorResponse } from '@/types/api'
 
@@ -26,7 +26,7 @@ async function verifyEntryOwnership(entryId: string, userId: string): Promise<bo
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization')
-    const userId = await validateAuthToken(authHeader)
+    const userId = await getUserIdForRequest(authHeader)
 
     const body = await request.json()
     const validated = saveIntentSchema.parse(body) as SaveIntentRequest
@@ -62,9 +62,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    if (error instanceof GuestConfigError) {
+      return NextResponse.json<ErrorResponse>(
+        { error: { code: 'GUEST_CONFIG', message: 'Guest mode is not configured. Set GUEST_USER_ID in .env.local.' } },
+        { status: 503 }
+      )
+    }
     if (error instanceof Error && error.message.includes('Authorization')) {
       return NextResponse.json<ErrorResponse>(
-        { error: { code: 'UNAUTHORIZED', message: error.message } },
+        { error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       )
     }

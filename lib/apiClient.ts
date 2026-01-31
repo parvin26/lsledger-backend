@@ -9,7 +9,8 @@ export interface ApiError {
 
 /**
  * Reusable request helper. Prefixes path with API base URL, attaches auth, JSON body/parse.
- * Throws on non-2xx with { code, message, status }; use for auth errors (401) and backend errors.
+ * Throws on non-2xx with { code, message, status }. Server never returns raw auth phrases
+ * (e.g. "Missing or invalid Authorization header"); 401 uses message "Unauthorized".
  * When GUEST_MODE_ENABLED, uses NEXT_PUBLIC_TEST_ACCESS_TOKEN for Authorization when token is null.
  */
 export async function request<T = unknown>(

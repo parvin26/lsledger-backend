@@ -92,18 +92,21 @@ function ResultContentInner() {
           <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px' }}>
             <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Verification record</div>
             <span className="verified-badge">Verified</span>
-            <p style={{ marginTop: '0.75rem', fontSize: '0.9375rem', color: 'var(--text)' }}>
-              Your capability review record is available to share:
-            </p>
             <Link
               href={`/verify/${publicId}`}
-              style={{ display: 'inline-block', marginTop: '0.5rem', color: 'var(--navy)', fontWeight: 600, wordBreak: 'break-all' }}
+              style={{ display: 'inline-block', marginTop: '0.75rem', color: 'var(--navy)', fontWeight: 600, wordBreak: 'break-all' }}
             >
               View verification record
             </Link>
-            <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-              Share this link: {typeof window !== 'undefined' ? `${window.location.origin}/verify/${publicId}` : `/verify/${publicId}`}
-            </p>
+            <div style={{ marginTop: '1rem' }}>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Shareable verification link</div>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                Share this secure link with employers, institutions, or collaborators to verify this capability review.
+              </p>
+              <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', wordBreak: 'break-all' }}>
+                {typeof window !== 'undefined' ? `${window.location.origin}/verify/${publicId}` : `/verify/${publicId}`}
+              </p>
+            </div>
           </div>
         )}
 

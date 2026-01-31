@@ -20,7 +20,9 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 ```
    `NEXT_PUBLIC_API_BASE_URL` is used by the frontend for all API calls; it defaults to `http://localhost:3001` if unset.
 
-   **Guest mode (V1 testing):** When `GUEST_MODE_ENABLED` is `true` in `lib/featureFlags.ts`, the app treats all visitors as signed in and uses a single test token for API calls. Set `NEXT_PUBLIC_TEST_ACCESS_TOKEN` in `.env.local` to a valid Supabase user access token (e.g. from `scripts/test_local_flow.ps1`). Sign-in is still available at `/login` but not required.
+   **Guest mode (V1 testing):** When `GUEST_MODE_ENABLED` is `true` in `lib/featureFlags.ts`, the app treats all visitors as signed in. No Authorization header is required for API calls; the server uses a single guest user for all guest traffic.
+   - **`GUEST_USER_ID`** (server, required for guest mode): A valid Supabase user UUID. All guest requests are attributed to this user (e.g. create entry, add evidence). Create a dedicated user in Supabase Auth or use an existing test user and set its UUID here. Without this, protected API calls in guest mode return 503 with "Guest mode is not configured."
+   - **`NEXT_PUBLIC_TEST_ACCESS_TOKEN`** (optional): If set, the frontend sends this as the Bearer token when the user has no session (e.g. guest). The server still accepts requests with no header in guest mode and uses `GUEST_USER_ID`. Sign-in is still available at `/login` but not required in guest mode.
 
 3. Run database migrations:
    - Execute `supabase/schema.sql` in your Supabase SQL editor

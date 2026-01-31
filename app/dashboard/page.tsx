@@ -44,8 +44,15 @@ export default function DashboardPage() {
       router.push(`/add?entry_id=${res.entry_id}`)
     } catch (err) {
       const e = err as ApiError
-      if (!GUEST_MODE_ENABLED && e?.status === 401) router.replace('/login')
-      else setError(e?.message ?? 'Something went wrong.')
+      if (!GUEST_MODE_ENABLED && e?.status === 401) {
+        router.replace('/login')
+        return
+      }
+      if (e?.status === 503 && e?.code === 'GUEST_CONFIG') {
+        setError('Guest mode is not configured on the server. Set GUEST_USER_ID in .env.local.')
+        return
+      }
+      setError(e?.message ?? 'Something went wrong.')
     } finally {
       setLoading(false)
     }

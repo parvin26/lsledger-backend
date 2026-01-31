@@ -9,29 +9,30 @@ import { GUEST_MODE_ENABLED } from '@/lib/featureFlags'
 
 export default function HomePage() {
   const router = useRouter()
-  const [signedIn, setSignedIn] = useState<boolean | null>(null)
+  const [signedIn, setSignedIn] = useState(false)
 
   useEffect(() => {
     if (GUEST_MODE_ENABLED) {
       setSignedIn(true)
       return
     }
-    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
-      setSignedIn(!!session?.user)
+    supabaseBrowser.auth.getSession().then(({ data }) => {
+      setSignedIn(!!data.session)
+    }).catch(() => {
+      setSignedIn(false)
     })
-    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_e, session) => {
-      setSignedIn(!!session?.user)
-    })
-    return () => subscription.unsubscribe()
   }, [])
 
-  function handleStartRecording() {
+  const handleStartRecording = () => {
     if (GUEST_MODE_ENABLED) {
       router.push('/dashboard')
       return
     }
-    if (signedIn) router.push('/dashboard')
-    else router.push('/login')
+    if (signedIn) {
+      router.push('/dashboard')
+    } else {
+      router.push('/login')
+    }
   }
 
   return (
@@ -74,7 +75,11 @@ export default function HomePage() {
           A system for recording and reviewing learning gained through real work and experience. Producing factual capability records.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center' }}>
-          <button type="button" onClick={handleStartRecording} className="btn-primary">
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleStartRecording}
+          >
             Start Recording
           </button>
           <Link href="/login" className="btn-secondary" style={{ textDecoration: 'none', display: 'inline-block' }}>

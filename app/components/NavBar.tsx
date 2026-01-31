@@ -8,29 +8,30 @@ import { GUEST_MODE_ENABLED } from '@/lib/featureFlags'
 
 export function NavBar() {
   const router = useRouter()
-  const [signedIn, setSignedIn] = useState<boolean | null>(null)
+  const [signedIn, setSignedIn] = useState(false)
 
   useEffect(() => {
     if (GUEST_MODE_ENABLED) {
       setSignedIn(true)
       return
     }
-    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
-      setSignedIn(!!session?.user)
+    supabaseBrowser.auth.getSession().then(({ data }) => {
+      setSignedIn(!!data.session)
+    }).catch(() => {
+      setSignedIn(false)
     })
-    const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange((_e, session) => {
-      setSignedIn(!!session?.user)
-    })
-    return () => subscription.unsubscribe()
   }, [])
 
-  function handleStartRecording() {
+  const handleStartRecording = () => {
     if (GUEST_MODE_ENABLED) {
       router.push('/dashboard')
       return
     }
-    if (signedIn) router.push('/dashboard')
-    else router.push('/login')
+    if (signedIn) {
+      router.push('/dashboard')
+    } else {
+      router.push('/login')
+    }
   }
 
   const navLinkStyle = { fontSize: '0.9375rem', color: 'var(--text)', textDecoration: 'none', fontWeight: 500 }
@@ -59,7 +60,12 @@ export function NavBar() {
         <Link href="/login" style={navLinkStyle}>
           Sign in
         </Link>
-        <button type="button" onClick={handleStartRecording} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9375rem' }}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={handleStartRecording}
+          style={{ padding: '0.5rem 1rem', fontSize: '0.9375rem' }}
+        >
           Start Recording
         </button>
       </nav>

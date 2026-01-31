@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { validateAuthToken } from '@/lib/auth'
+import { getUserIdForRequest, GuestConfigError } from '@/lib/auth'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { CreateEntryRequest, CreateEntryResponse, ErrorResponse } from '@/types/api'
 
@@ -9,10 +9,15 @@ const createEntrySchema = z.object({
   description: z.string().optional()
 })
 
+/**
+ * POST /api/entry/create
+ * Guest mode: no Authorization header required; uses GUEST_USER_ID.
+ * Non-guest: valid Bearer required; 401 with generic message if missing/invalid.
+ */
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization')
-    const userId = await validateAuthToken(authHeader)
+    const userId = await getUserIdForRequest(authHeader)
 
     const body = await request.json()
     const validated = createEntrySchema.parse(body) as CreateEntryRequest
@@ -45,9 +50,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    if (error instanceof GuestConfigError) {
+      return NextResponse.json<ErrorResponse>(
+        { error: { code: 'GUEST_CONFIG', message: 'Guest mode is not configured. Set GUEST_USER_ID in .env.local.' } },
+        { status: 503 }
+      )
+    }
+    // Never surface internal auth messages (e.g. "Missing or invalid Authorization header") to API response.
     if (error instanceof Error && error.message.includes('Authorization')) {
       return NextResponse.json<ErrorResponse>(
-        { error: { code: 'UNAUTHORIZED', message: error.message } },
+        { error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } },
         { status: 401 }
       )
     }

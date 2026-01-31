@@ -1,5 +1,4 @@
 import { getApiBaseUrl } from './config'
-import { GUEST_MODE_ENABLED } from './featureFlags'
 
 export interface ApiError {
   code: string
@@ -11,7 +10,8 @@ export interface ApiError {
  * Reusable request helper. Prefixes path with API base URL, attaches auth, JSON body/parse.
  * Throws on non-2xx with { code, message, status }. Server never returns raw auth phrases
  * (e.g. "Missing or invalid Authorization header"); 401 uses message "Unauthorized".
- * When GUEST_MODE_ENABLED, uses NEXT_PUBLIC_TEST_ACCESS_TOKEN for Authorization when token is null.
+ * In guest mode with no session (token null), we send no Authorization header so the
+ * server uses GUEST_USER_ID instead of validating a token.
  */
 export async function request<T = unknown>(
   path: string,
@@ -22,10 +22,7 @@ export async function request<T = unknown>(
   const base = getApiBaseUrl().replace(/\/$/, '')
   const url = path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
 
-  const effectiveToken =
-    GUEST_MODE_ENABLED && !token
-      ? (process.env.NEXT_PUBLIC_TEST_ACCESS_TOKEN ?? null)
-      : token
+  const effectiveToken = token
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

@@ -5,6 +5,11 @@ import { createClient } from '@supabase/supabase-js'
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+console.log('Supabase env in production', {
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'present' : 'missing',
+  key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'present' : 'missing',
+})
+
 if (!url || !anonKey) {
   throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set for frontend auth')
 }

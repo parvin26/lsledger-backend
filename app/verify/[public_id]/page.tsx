@@ -4,20 +4,14 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { getVerification } from '@/lib/ledgerApi'
+import type { VerificationRecord } from '@/types/api'
 
-interface VerificationData {
-  public_id: string
-  domain: string
-  capabilitySummary: string
-  confidenceBand: 'Low' | 'Medium' | 'High'
-  created_at: string
-  intent_prompt?: string
-}
+const LAYER_NAMES = ['Explanation', 'Application', 'Trade-offs / limits', 'Reflection / next steps'] as const
 
 export default function VerifyPage() {
   const params = useParams()
   const publicId = typeof params?.public_id === 'string' ? params.public_id : ''
-  const [data, setData] = useState<VerificationData | null>(null)
+  const [data, setData] = useState<VerificationRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,6 +58,13 @@ export default function VerifyPage() {
 
   const date = new Date(data.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   const isVerified = data.confidenceBand === 'Medium' || data.confidenceBand === 'High'
+  const layerDescriptors = [
+    data.layer1_descriptor,
+    data.layer2_descriptor,
+    data.layer3_descriptor,
+    data.layer4_descriptor
+  ]
+  const hasLayerBreakdown = layerDescriptors.some(Boolean)
 
   return (
     <div className="form-card" style={{ paddingTop: '2rem', maxWidth: '800px', lineHeight: 1.6 }}>
@@ -78,6 +79,13 @@ export default function VerifyPage() {
           <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Domain</div>
           <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text)' }}>{data.domain}</div>
         </div>
+
+        {data.evidence_summary && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>What was reviewed</div>
+            <div style={{ fontSize: '1rem', color: 'var(--text)' }}>{data.evidence_summary}</div>
+          </div>
+        )}
 
         {data.intent_prompt && (
           <div style={{ marginBottom: '1.5rem' }}>
@@ -96,6 +104,15 @@ export default function VerifyPage() {
           <div style={{ fontSize: '1rem', fontWeight: 600, color: isVerified ? 'var(--ledger-crimson)' : 'var(--text)' }}>{data.confidenceBand}</div>
           {isVerified && <span className="verified-badge" style={{ fontSize: '0.875rem', marginLeft: '0.5rem' }}>Verified</span>}
         </div>
+
+        {hasLayerBreakdown && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Layer summary</div>
+            <p style={{ fontSize: '0.9375rem', color: 'var(--text)', margin: 0, lineHeight: 1.7 }}>
+              {LAYER_NAMES.map((name, i) => `${name}: ${layerDescriptors[i] ?? '—'}`).join('; ')}.
+            </p>
+          </div>
+        )}
 
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Record ID</div>

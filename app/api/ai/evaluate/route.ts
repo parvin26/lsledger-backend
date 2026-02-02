@@ -98,9 +98,10 @@ export async function POST(request: NextRequest) {
       .select('evidence_type, content')
       .eq('entry_id', validated.entry_id)
 
-    const evidenceSummary = evidenceData
-      ?.map(e => `${e.evidence_type}: ${e.content.substring(0, 300)}`)
+    const evidenceSummaryFull = evidenceData
+      ?.map(e => `${e.evidence_type}: ${(e.content ?? '').substring(0, 300)}`)
       .join('\n') || 'No evidence'
+    const evidenceSummaryShort = (evidenceData?.[0]?.content ?? '').substring(0, 200).trim() || 'No evidence'
 
     // Build evaluation prompt with all required context
     const qaPairs = validated.answers.map((answer) => {
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
       return `Question ${answer.questionNumber}: ${question?.question_text || 'Unknown'}\nAnswer: ${answer.answer}`
     }).join('\n\n')
 
-    const userPrompt = `Original evidence:\n${evidenceSummary}\n\nDomain: ${entryData.domain || 'Unknown'}\n\nQuestions and answers:\n${qaPairs}`
+    const userPrompt = `Original evidence:\n${evidenceSummaryFull}\n\nDomain: ${entryData.domain || 'Unknown'}\n\nQuestions and answers:\n${qaPairs}`
 
     // Call AI with strict JSON parsing
     const evaluation = await callAIWithStrictJSON<AnswerEvaluation>(
@@ -156,7 +157,12 @@ export async function POST(request: NextRequest) {
           domain: entryForVerification?.domain || 'Unknown',
           capability_summary: evaluation.capability_summary,
           confidence_band: evaluation.confidence_band,
-          intent_prompt: entryForVerification?.intent_prompt || null
+          intent_prompt: entryForVerification?.intent_prompt || null,
+          evidence_summary: evidenceSummaryShort,
+          layer1_descriptor: evaluation.layer1_descriptor,
+          layer2_descriptor: evaluation.layer2_descriptor,
+          layer3_descriptor: evaluation.layer3_descriptor,
+          layer4_descriptor: evaluation.layer4_descriptor
         })
         .select('id')
         .single()
@@ -176,7 +182,11 @@ export async function POST(request: NextRequest) {
       confidence_band: evaluation.confidence_band,
       rationale: evaluation.rationale,
       verification_id: verificationId,
-      public_id: publicId
+      public_id: publicId,
+      layer1_descriptor: evaluation.layer1_descriptor,
+      layer2_descriptor: evaluation.layer2_descriptor,
+      layer3_descriptor: evaluation.layer3_descriptor,
+      layer4_descriptor: evaluation.layer4_descriptor
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

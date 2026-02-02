@@ -56,3 +56,47 @@ export async function request<T = unknown>(
 
   return data as T
 }
+
+/**
+ * POST multipart/form-data. Do not set Content-Type so the browser sets boundary.
+ * Throws on non-2xx with { code, message, status }.
+ */
+export async function requestMultipart<T = unknown>(
+  path: string,
+  method: 'POST',
+  token: string | null,
+  body: FormData
+): Promise<T> {
+  const base = getApiBaseUrl().replace(/\/$/, '')
+  const url = path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
+
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const res = await fetch(url, {
+    method,
+    headers,
+    body,
+  })
+
+  const text = await res.text()
+  let data: { error?: { code: string; message: string } }
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    data = {}
+  }
+
+  if (!res.ok) {
+    const err: ApiError = {
+      code: data?.error?.code ?? 'REQUEST_FAILED',
+      message: data?.error?.message ?? (res.statusText || `Request failed (${res.status})`),
+      status: res.status,
+    }
+    throw err
+  }
+
+  return data as T
+}

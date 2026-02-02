@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const { data: evidenceData, error: evidenceError } = await supabaseServer
       .from('evidence')
-      .select('evidence_type, content')
+      .select('evidence_type, content, transcript')
       .eq('entry_id', validated.entry_id)
 
     if (evidenceError) {
@@ -81,13 +81,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Build evidence summary for AI
+    // evidence_text: transcript if available (e.g. YouTube), else text content, else short description
+    const evidenceTextParts: string[] = []
+    for (const e of evidenceData) {
+      const transcript = (e as { transcript?: string | null }).transcript
+      if (transcript && transcript.trim()) {
+        evidenceTextParts.push(transcript)
+      } else if (e.evidence_type === 'text' && e.content) {
+        evidenceTextParts.push(e.content.substring(0, 5000))
+      } else if (e.evidence_type === 'link' && e.content) {
+        evidenceTextParts.push(`Link: ${e.content}`)
+      } else if (e.evidence_type === 'file' && e.content) {
+        evidenceTextParts.push(`File: ${e.content}`)
+      }
+    }
+    const evidenceText = evidenceTextParts.join('\n\n').trim() || 'No transcript or text provided.'
     const evidenceSummary = evidenceData
-      .map(e => `${e.evidence_type}: ${e.content.substring(0, 500)}`)
+      .map(e => `${e.evidence_type}: ${(e.content ?? '').substring(0, 500)}`)
       .join('\n\n')
 
-    // Build prompt with all required context
-    const userPrompt = `Learning evidence:\n${evidenceSummary}\n\nPrimary domain: ${entryData.domain}\nIntent: ${entryData.intent_prompt || 'Not provided'}`
+    // Build prompt with all required context (transcript/excerpt for grounded questions)
+    const userPrompt = `Learning evidence summary:\n${evidenceSummary}\n\nTranscript or excerpt from the learner's evidence (read carefully for grounded questions):\n${evidenceText}\n\nPrimary domain: ${entryData.domain}\nIntent: ${entryData.intent_prompt || 'Not provided'}`
 
     // Call AI with strict JSON parsing
     const questions = await callAIWithStrictJSON<QuestionGeneration>(

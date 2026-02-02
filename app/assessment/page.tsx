@@ -12,6 +12,7 @@ function AssessmentForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const entryId = searchParams.get('entry_id')
+  const LAYER_LABELS: [string, string, string, string] = ['Explanation', 'Application', 'Trade-offs / limits', 'Reflection / next steps']
   const [questions, setQuestions] = useState<{ q1: string; q2: string; q3: string; q4: string } | null>(null)
   const [answers, setAnswers] = useState({ q1: '', q2: '', q3: '', q4: '' })
   const [loading, setLoading] = useState(true)
@@ -78,6 +79,10 @@ function AssessmentForm() {
           public_id: res.public_id ?? null,
           confidence_band: res.confidence_band,
           capability_summary: res.capability_summary ?? '',
+          layer1_descriptor: res.layer1_descriptor ?? null,
+          layer2_descriptor: res.layer2_descriptor ?? null,
+          layer3_descriptor: res.layer3_descriptor ?? null,
+          layer4_descriptor: res.layer4_descriptor ?? null,
         }))
       }
       const publicId = res.public_id ?? ''
@@ -109,7 +114,7 @@ function AssessmentForm() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {[1, 2, 3, 4].map((n) => (
           <label key={n} className="label">
-            <span style={{ fontWeight: 600, marginBottom: '0.25rem', display: 'block' }}>Question {n}</span>
+            <span style={{ fontWeight: 600, marginBottom: '0.25rem', display: 'block' }}>{n}. {LAYER_LABELS[n - 1]}</span>
             <p style={{ fontSize: '0.9375rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{(questions as Record<string, string>)[`q${n}`]}</p>
             <textarea
               value={answers[`q${n}` as keyof typeof answers]}

@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Build evidence summary for AI
     const evidenceSummary = evidenceData
-      .map(e => `${e.evidence_type}: ${e.content.substring(0, 500)}`)
+      .map(e => `${e.evidence_type}: ${(e.content ?? '').substring(0, 500)}`)
       .join('\n\n')
 
     const userPrompt = `Evidence to analyze:\n\n${evidenceSummary}`

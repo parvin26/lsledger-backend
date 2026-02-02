@@ -7,7 +7,42 @@ export interface CreateEntryRequest {
 export interface AddEvidenceRequest {
   entry_id: string
   evidence_type: 'link' | 'file' | 'text'
-  content: string // URL for link, file path/ID for file, text content for text
+  content: string // URL for link, text content for text; for file use upload API
+}
+
+export interface AddEvidenceResponse {
+  evidence_id: string
+  created_at: string
+}
+
+/** File metadata stored in evidence when evidence_type = 'file' */
+export interface EvidenceFileMetadata {
+  storage_path: string
+  original_filename: string
+  mime_type: string
+  size: number
+}
+
+/** Single evidence item (for GET /api/evidence?entry_id=) */
+export interface EvidenceItem {
+  id: string
+  evidence_type: 'link' | 'file' | 'text'
+  content: string | null
+  storage_path?: string | null
+  original_filename?: string | null
+  mime_type?: string | null
+  size?: number | null
+  transcript?: string | null
+  created_at: string
+}
+
+export interface GetEvidenceResponse {
+  evidence: EvidenceItem[]
+}
+
+export interface SignedUrlResponse {
+  url: string
+  expires_at?: string
 }
 
 export interface SaveIntentRequest {
@@ -37,11 +72,6 @@ export interface CreateEntryResponse {
   created_at: string
 }
 
-export interface AddEvidenceResponse {
-  evidence_id: string
-  created_at: string
-}
-
 export interface SaveIntentResponse {
   success: boolean
 }
@@ -63,12 +93,18 @@ export interface GenerateQuestionsResponse {
   q4: string
 }
 
+export type LayerDescriptor = 'Strong' | 'Adequate' | 'Needs work'
+
 export interface EvaluateAnswersResponse {
   capability_summary: string
   confidence_band: 'Low' | 'Medium' | 'High'
   rationale: string
   verification_id?: string
   public_id?: string
+  layer1_descriptor?: LayerDescriptor
+  layer2_descriptor?: LayerDescriptor
+  layer3_descriptor?: LayerDescriptor
+  layer4_descriptor?: LayerDescriptor
 }
 
 export interface VerificationRecord {
@@ -79,6 +115,11 @@ export interface VerificationRecord {
   confidenceBand: 'Low' | 'Medium' | 'High'
   created_at: string
   intent_prompt?: string
+  evidence_summary?: string
+  layer1_descriptor?: LayerDescriptor
+  layer2_descriptor?: LayerDescriptor
+  layer3_descriptor?: LayerDescriptor
+  layer4_descriptor?: LayerDescriptor
 }
 
 export interface ErrorResponse {
@@ -86,6 +127,23 @@ export interface ErrorResponse {
     code: string
     message: string
   }
+}
+
+export type EntryStatus = 'Recorded only' | 'Under review' | 'Reviewed' | 'Reviewed – link available'
+
+export interface TimelineEntry {
+  id: string
+  created_at: string
+  title: string
+  evidence_summary: string
+  status: EntryStatus
+  public_id?: string
+  /** When primary evidence is a file, set so the client can get a signed download URL */
+  file_evidence_id?: string
+}
+
+export interface ListEntriesResponse {
+  entries: TimelineEntry[]
 }
 
 // AI response types (match prompt outputs exactly)
@@ -110,4 +168,8 @@ export interface AnswerEvaluation {
   capability_summary: string
   confidence_band: 'Low' | 'Medium' | 'High'
   rationale: string
+  layer1_descriptor: LayerDescriptor
+  layer2_descriptor: LayerDescriptor
+  layer3_descriptor: LayerDescriptor
+  layer4_descriptor: LayerDescriptor
 }

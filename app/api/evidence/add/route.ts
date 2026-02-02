@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getUserIdForRequest, GuestConfigError } from '@/lib/auth'
 import { supabaseServer } from '@/lib/supabaseServer'
+import { getYouTubeTranscript } from '@/lib/videoTranscript'
 import { AddEvidenceRequest, AddEvidenceResponse, ErrorResponse } from '@/types/api'
 
 const addEvidenceSchema = z.object({
@@ -41,12 +42,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    let transcript: string | null = null
+    if (validated.evidence_type === 'link') {
+      try {
+        transcript = await getYouTubeTranscript(validated.content)
+        if (!transcript) {
+          // Soft warning only; assessment will proceed with URL/title/description fallback
+          console.warn('[evidence/add] YouTube transcript not available for', validated.content.substring(0, 80))
+        }
+      } catch (e) {
+        console.warn('[evidence/add] Transcript fetch failed:', e instanceof Error ? e.message : String(e))
+      }
+    }
+
     const { data, error } = await supabaseServer
       .from('evidence')
       .insert({
         entry_id: validated.entry_id,
         evidence_type: validated.evidence_type,
-        content: validated.content
+        content: validated.content,
+        ...(transcript !== null && { transcript }),
       })
       .select('id, created_at')
       .single()

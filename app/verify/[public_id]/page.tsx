@@ -48,7 +48,7 @@ export default function VerifyPage() {
     return (
       <div className="form-card" style={{ paddingTop: '3rem', maxWidth: '800px' }}>
         <Link href="/" style={{ display: 'inline-block', marginBottom: '1.5rem' }}>
-          <img src="/logo.svg" alt="Lighthouse Ledger" width="120" height="80" style={{ display: 'block' }} />
+          <img src="/logo.svg" alt="Lighthouse Ledger" width="130" height="140" style={{ display: 'block' }} />
         </Link>
         <h1 className="heading">Capability Review Record</h1>
         <p className="error-msg" style={{ marginTop: '1rem' }}>{error ?? 'Not found'}</p>
@@ -69,7 +69,7 @@ export default function VerifyPage() {
   return (
     <div className="form-card" style={{ paddingTop: '2rem', maxWidth: '800px', lineHeight: 1.6 }}>
       <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>
-        <img src="/logo.svg" alt="Lighthouse Ledger" width="120" height="80" style={{ display: 'block' }} />
+        <img src="/logo.svg" alt="Lighthouse Ledger" width="130" height="140" style={{ display: 'block' }} />
       </Link>
       <h1 className="heading">Capability Review Record</h1>
       <p className="helper">Public verification record. No sign-in required.</p>

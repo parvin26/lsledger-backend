@@ -1,6 +1,8 @@
 /**
- * Fetches YouTube video transcript via an external API.
- * Set YOUTUBE_TRANSCRIPT_API_URL and optionally YOUTUBE_TRANSCRIPT_API_KEY in env.
+ * Fetches YouTube video transcript. Uses the built-in /api/youtube-transcript route when
+ * YOUTUBE_TRANSCRIPT_API_URL is unset (defaults to same-origin in production and localhost in dev).
+ * Set YOUTUBE_TRANSCRIPT_API_URL to override (e.g. external transcript API).
+ * Optionally set YOUTUBE_TRANSCRIPT_API_KEY; if set, requests must send Authorization: Bearer <key>.
  * On error, logs server-side once and returns null; does not break the assessment flow.
  */
 
@@ -15,12 +17,22 @@ function normaliseYouTubeUrl(url: string): string | null {
   return null
 }
 
+function getTranscriptApiUrl(): string | null {
+  if (process.env.YOUTUBE_TRANSCRIPT_API_URL) {
+    return process.env.YOUTUBE_TRANSCRIPT_API_URL.replace(/\/$/, '')
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/api/youtube-transcript`
+  }
+  return 'http://localhost:3001/api/youtube-transcript'
+}
+
 export function isYouTubeUrl(url: string): boolean {
   return normaliseYouTubeUrl(url) !== null
 }
 
 export async function getYouTubeTranscript(url: string): Promise<string | null> {
-  const apiUrl = process.env.YOUTUBE_TRANSCRIPT_API_URL
+  const apiUrl = getTranscriptApiUrl()
   const apiKey = process.env.YOUTUBE_TRANSCRIPT_API_KEY
   if (!apiUrl) {
     return null

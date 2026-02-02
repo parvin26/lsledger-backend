@@ -50,7 +50,7 @@ export function NavBar() {
       }}
     >
       <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'inherit' }}>
-        <img src="/logo.svg" alt="" className="home-nav-logo" width={24} height={28} />
+        <img src="/logo.svg" alt="" className="home-nav-logo" width={32} height={37} />
         <span style={{ fontWeight: 600, fontSize: '1rem' }}>Lighthouse Ledger</span>
       </Link>
       <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>

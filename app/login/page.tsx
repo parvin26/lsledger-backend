@@ -36,7 +36,7 @@ export default function LoginPage() {
   return (
     <div className="form-card" style={{ paddingTop: '3rem' }}>
       <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>
-        <img src="/logo.svg" alt="Lighthouse Ledger" width="120" height="80" style={{ display: 'block' }} />
+        <img src="/logo.svg" alt="Lighthouse Ledger" width="130" height="140" style={{ display: 'block' }} />
       </Link>
       <h1 className="heading">Sign in</h1>
       <p className="helper">Sign in to your account to continue.</p>

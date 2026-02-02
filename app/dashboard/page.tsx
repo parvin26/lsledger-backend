@@ -91,7 +91,7 @@ export default function DashboardPage() {
     <div className="form-card" style={{ paddingTop: '2rem', maxWidth: '560px' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'inherit' }}>
-          <img src="/logo.svg" alt="" width="48" height="32" style={{ display: 'block' }} />
+          <img src="/logo.svg" alt="" width="64" height="70" style={{ display: 'block' }} />
           <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>Lighthouse Ledger</span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

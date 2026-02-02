@@ -48,7 +48,7 @@ export default function HomePage() {
           textAlign: 'center',
         }}
       >
-        <img src="/logo.svg" alt="" className="home-hero-logo" width={40} height={47} />
+        <img src="/logo.svg" alt="" className="home-hero-logo" width={56} height={65} />
         <h1
           style={{
             fontSize: 'clamp(1.75rem, 4vw, 2.25rem)',
@@ -167,7 +167,7 @@ export default function HomePage() {
           marginTop: '2rem',
         }}
       >
-        <img src="/logo.svg" alt="Lighthouse Ledger" className="home-footer-logo" width={24} height={28} />
+        <img src="/logo.svg" alt="Lighthouse Ledger" className="home-footer-logo" width={32} height={37} />
         <span style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--text)' }}>Lighthouse Ledger</span>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.5rem', lineHeight: 1.5 }}>
           A capability record system. Evidence over attendance. Understanding over completion.

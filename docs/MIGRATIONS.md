@@ -51,3 +51,9 @@ ALTER TABLE verifications
 4. Create the Storage bucket: Supabase Dashboard → **Storage** → **New bucket** → name: `evidence-files`, **Private** (not public). This bucket stores uploaded evidence files; access is via signed URLs for the entry owner only.
 
 **Verifying:** Table Editor → `evidence` should have the new columns. Public verification pages do not expose raw evidence files; they show only the evidence summary text (e.g. "File: report.pdf").
+
+---
+
+## 3. YouTube transcript (env vars only)
+
+Transcript ingestion uses the built-in **POST /api/youtube-transcript** route. No database migration is required. For environment variables (optional), see **docs/TRANSCRIPTS.md**.

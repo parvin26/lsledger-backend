@@ -34,7 +34,7 @@ export function NavBar() {
     }
   }
 
-  const navLinkStyle = { fontSize: '0.9375rem', color: 'var(--text)', textDecoration: 'none', fontWeight: 500 }
+  const navLinkStyle = { fontSize: '0.9375rem', color: 'var(--color-deep-slate)', textDecoration: 'none', fontWeight: 500 }
 
   return (
     <header
@@ -43,19 +43,22 @@ export function NavBar() {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '1rem 1.5rem',
-        maxWidth: '1200px',
+        maxWidth: '1120px',
         margin: '0 auto',
         flexWrap: 'wrap',
         gap: '0.75rem',
       }}
     >
       <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'inherit' }}>
-        <img src="/logo.svg" alt="" className="home-nav-logo" width={32} height={37} />
-        <span style={{ fontWeight: 600, fontSize: '1rem' }}>Lighthouse Ledger</span>
+        <img src="/logo.png" alt="" className="home-nav-logo" width={40} height={46} style={{ objectFit: 'contain' }} />
+        <span style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--color-lighthouse-navy)' }}>Lighthouse Ledger</span>
       </Link>
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <nav style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
         <Link href="/about" style={navLinkStyle}>
           About
+        </Link>
+        <Link href="/dashboard" style={navLinkStyle}>
+          Dashboard
         </Link>
         <Link href="/login" style={navLinkStyle}>
           Sign in

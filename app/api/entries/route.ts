@@ -116,7 +116,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json<ListEntriesResponse>({ entries: timeline })
   } catch (error) {
     console.error('ENTRIES_API_ERROR', {
-      error: error instanceof Error ? error.message : String(error),
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : undefined,
+      stack: error instanceof Error ? error.stack : undefined,
     })
     if (error instanceof GuestConfigError) {
       return NextResponse.json<ErrorResponse>(

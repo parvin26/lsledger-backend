@@ -34,12 +34,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="form-card" style={{ paddingTop: '3rem' }}>
-      <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>
-        <img src="/logo.svg" alt="Lighthouse Ledger" width="130" height="140" style={{ display: 'block' }} />
-      </Link>
-      <h1 className="heading">Sign in</h1>
-      <p className="helper">Sign in to your account to continue.</p>
+    <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1.5rem' }}>
+      <div className="form-card" style={{ paddingTop: '0', width: '100%', maxWidth: '480px' }}>
+        <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>
+          <img src="/logo.png" alt="Lighthouse Ledger" width={160} height={180} style={{ display: 'block', objectFit: 'contain' }} />
+        </Link>
+        <h1 className="heading" style={{ color: 'var(--color-lighthouse-navy)' }}>Sign in</h1>
+        <p className="helper" style={{ color: 'var(--color-muted-text)' }}>Sign in to your account to continue.</p>
       {error && <p className="error-msg" role="alert">{error}</p>}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <label className="label">
@@ -70,6 +71,7 @@ export default function LoginPage() {
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      </div>
     </div>
   )
 }

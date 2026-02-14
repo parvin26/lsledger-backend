@@ -31,11 +31,22 @@ export async function request<T = unknown>(
     headers['Authorization'] = `Bearer ${effectiveToken}`
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e))
+    const cause = err.cause instanceof Error ? err.cause.message : undefined
+    throw {
+      code: 'NETWORK_ERROR',
+      message: cause || err.message || 'Network request failed. Check your connection or try again later.',
+      status: 0,
+    } as ApiError
+  }
 
   let data: { error?: { code: string; message: string } }
   const text = await res.text()
@@ -75,11 +86,22 @@ export async function requestMultipart<T = unknown>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body,
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body,
+    })
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e))
+    const cause = err.cause instanceof Error ? err.cause.message : undefined
+    throw {
+      code: 'NETWORK_ERROR',
+      message: cause || err.message || 'Network request failed. Check your connection or try again later.',
+      status: 0,
+    } as ApiError
+  }
 
   const text = await res.text()
   let data: { error?: { code: string; message: string } }

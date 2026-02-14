@@ -56,6 +56,10 @@ export default function DashboardPage() {
         setError('Guest mode is not configured on the server. Set GUEST_USER_ID in .env.local.')
         return
       }
+      if (e?.status === 0 && e?.code === 'NETWORK_ERROR') {
+        setError('Cannot reach the server. Check your connection, or the service may be temporarily unavailable.')
+        return
+      }
       setError(e?.message ?? 'Something went wrong.')
     } finally {
       setLoading(false)
@@ -88,44 +92,108 @@ export default function DashboardPage() {
   const showMainContent = GUEST_MODE_ENABLED || session !== null
 
   return (
-    <div className="form-card" style={{ paddingTop: '2rem', maxWidth: '560px' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', color: 'var(--color-deep-slate)' }}>
+      {/* Header – keep as-is per prompt */}
+      <header
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '1rem 1.5rem',
+          maxWidth: '1120px',
+          margin: '0 auto',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+        }}
+      >
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'inherit' }}>
-          <img src="/logo.svg" alt="" width="64" height="70" style={{ display: 'block' }} />
-          <span style={{ fontWeight: 600, fontSize: '1.125rem' }}>Lighthouse Ledger</span>
+          <img src="/logo.png" alt="" width={40} height={46} style={{ display: 'block', objectFit: 'contain' }} />
+          <span style={{ fontWeight: 600, fontSize: '1.125rem', color: 'var(--color-lighthouse-navy)' }}>Lighthouse Ledger</span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            {GUEST_MODE_ENABLED ? 'Guest session' : session?.email ?? 'Loading…'}
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              color: 'var(--color-muted-text)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              background: 'rgba(255,255,255,0.5)',
+              padding: '0.25rem 0.75rem',
+              borderRadius: 9999,
+              border: '1px solid var(--color-divider)',
+            }}
+          >
+            Session: {GUEST_MODE_ENABLED ? 'guest' : session?.email ?? 'Loading…'}
           </span>
           {!GUEST_MODE_ENABLED && session !== null && (
-            <button
-              type="button"
-              onClick={signOut}
-              className="btn-secondary"
-              style={{ padding: '0.4rem 0.8rem' }}
-            >
+            <button type="button" className="btn-secondary" style={{ padding: '0.4rem 0.8rem' }} onClick={signOut}>
               Sign out
             </button>
           )}
         </div>
       </header>
+
       {showMainContent ? (
-        <>
-          <h1 className="heading">Dashboard</h1>
-          <p className="helper">Create a new learning entry or open one from your learning timeline.</p>
-          {error && <p className="error-msg" role="alert">{error}</p>}
-          <button type="button" onClick={handleCreateEntry} className="btn-primary" disabled={loading} style={{ marginTop: '0.5rem' }}>
-            {loading ? 'Creating…' : 'Create entry'}
-          </button>
-        </>
+        <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '0 1.5rem 3rem' }}>
+          {/* Page title and subtitle */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-lighthouse-navy)' }}>
+              Dashboard
+            </h1>
+            <p style={{ fontSize: '1.125rem', color: 'var(--color-deep-slate)' }}>
+              Start a new learning entry or continue one from your timeline.
+            </p>
+          </div>
+
+          <div className="dashboard-grid">
+            {/* Left panel: Start a new entry */}
+            <div>
+              <div className="ds-card" style={{ padding: '1.5rem', position: 'sticky', top: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-lighthouse-navy)' }}>
+                  Start a new entry
+                </h2>
+                <p style={{ fontSize: '0.9375rem', color: 'var(--color-deep-slate)', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+                  Capture something you learned from real work, a project, or a conversation.
+                </p>
+                {error && <p className="error-msg" role="alert" style={{ marginBottom: '0.75rem' }}>{error}</p>}
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={loading}
+                  onClick={handleCreateEntry}
+                  data-create-entry
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  {loading ? 'Creating…' : '+ Create entry'}
+                </button>
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)', textAlign: 'center', marginBottom: '1rem' }}>
+                  Takes about 3–5 minutes.
+                </p>
+                <div style={{ textAlign: 'center' }}>
+                  <Link
+                    href="/#capability-ledger-preview"
+                    style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-signal-blue)', textDecoration: 'none' }}
+                  >
+                    See example entry →
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Right panel: Timeline */}
+            <div>
+              <DashboardTimeline onEntryClick={setDetailEntry} />
+            </div>
+          </div>
+        </div>
       ) : (
-        <p style={{ fontSize: '0.9375rem', color: 'var(--text-muted)' }}>Loading session…</p>
+        <div style={{ maxWidth: '560px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+          <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted-text)' }}>Loading session…</p>
+        </div>
       )}
 
-      {/* Timeline always mounted so GET /api/entries runs on dashboard load (guest or authed). */}
-      <DashboardTimeline onEntryClick={setDetailEntry} />
-
+      {/* Entry detail modal – unchanged behavior */}
       {detailEntry && (
         <div
           role="dialog"
@@ -144,43 +212,33 @@ export default function DashboardPage() {
           onClick={() => setDetailEntry(null)}
         >
           <div
-            className="form-card"
+            className="ds-card"
             style={{ maxWidth: '400px', padding: '1.5rem' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="entry-detail-title" style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            <h2 id="entry-detail-title" style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-lighthouse-navy)' }}>
               {detailEntry.title}
             </h2>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted-text)', marginBottom: '0.5rem' }}>
               {detailEntry.evidence_summary}
             </p>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted-text)', marginBottom: '1rem' }}>
               Status: {detailEntry.status}
             </p>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text)', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-deep-slate)', marginBottom: '1rem' }}>
               {detailEntry.status === 'Under review'
                 ? 'Complete the assessment to get a verification link.'
                 : 'This entry has not been reviewed yet. Add evidence and complete the assessment to get a verification link.'}
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {detailEntry.status === 'Under review' ? (
-                <Link
-                  href={`/assessment?entry_id=${detailEntry.id}`}
-                  className="btn-primary"
-                  style={{ textDecoration: 'none', display: 'inline-block' }}
-                >
+                <Link href={`/assessment?entry_id=${detailEntry.id}`} className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }}>
                   Continue assessment
                 </Link>
               ) : (
-                <>
-                  <Link
-                    href={`/add?entry_id=${detailEntry.id}`}
-                    className="btn-primary"
-                    style={{ textDecoration: 'none', display: 'inline-block' }}
-                  >
-                    {detailEntry.file_evidence_id ? 'View / replace file & continue' : 'Add evidence & continue'}
-                  </Link>
-                </>
+                <Link href={`/add?entry_id=${detailEntry.id}`} className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                  {detailEntry.file_evidence_id ? 'View / replace file & continue' : 'Add evidence & continue'}
+                </Link>
               )}
               <button type="button" onClick={() => setDetailEntry(null)} className="btn-secondary">
                 Close

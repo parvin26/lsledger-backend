@@ -1,6 +1,7 @@
 import React from 'react'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { BetaNotice } from '@/app/components/BetaNotice'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -18,6 +19,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className={inter.className}>
         {children}
+        <BetaNotice />
       </body>
     </html>
   )

@@ -55,7 +55,7 @@ All POST endpoints require `Authorization: Bearer <token>` header with a valid S
 
 ### Public Verification
 - `GET /api/verify/[public_id]` - Get verification record as JSON
-- `GET /verify/[public_id]` - View verification record page
+- `GET /record/[public_id]` - View verification record page (shareable link format)
 
 ## Local development + test flow
 

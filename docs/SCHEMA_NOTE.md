@@ -30,12 +30,16 @@ This document describes the Supabase tables used by the app. Run migrations in y
 
 For file evidence, content stores the display name; raw file is in Storage. Run `docs/evidence_file_transcript_migration.sql` if these columns are missing. Create Storage bucket `evidence-files` (private) in Supabase Dashboard → Storage if not present.
 
+Phase 1 (integrity): `admissible` (boolean, nullable), `integrity_flags` (jsonb, default `[]`), `provenance` (jsonb, default `{}`). Run `docs/migrations/phase1_evidence_integrity.sql`.
+
 ### assessment_questions
 - `entry_id` (uuid, FK)
 - `question_number` (int, 1–4)
 - `question_text` (text)
 - `layer` (text, nullable) — optional: 'Explanation' | 'Application' | 'Trade-offs/limits' | 'Reflection/next steps'
 - Unique on (entry_id, question_number)
+
+Phase 2 (WhyAsked): `layer_number` (integer 1–4), `criterion_code` (text), `skill_tags` (text[]), `evidence_anchors` (jsonb), `why_asked` (jsonb). Run `docs/migrations/phase2_assessment_questions_why_asked.sql`.
 
 ### assessment_answers
 - `entry_id` (uuid, FK)
@@ -56,6 +60,48 @@ For file evidence, content stores the display name; raw file is in Storage. Run 
 - `layer1_descriptor`, `layer2_descriptor`, `layer3_descriptor`, `layer4_descriptor` (text, nullable) — 'Strong' | 'Adequate' | 'Needs work'
 
 If your `verifications` table was created before these columns existed, run the migration in the Supabase SQL editor. See **docs/MIGRATIONS.md** for step-by-step instructions (Supabase Dashboard → SQL Editor → paste and run the SQL from `docs/verifications_4layer_migration.sql`).
+
+Phase 1: `rubric_id` (text, nullable). Run `docs/migrations/phase1_rubric_id_columns.sql`.
+
+### assessment_runs (Phase 1)
+
+- `id` (uuid, PK)
+- `entry_id` (uuid, FK to entries)
+- `user_id` (uuid)
+- `started_at`, `completed_at` (timestamptz)
+- `question_budget`, `questions_asked` (integer)
+- `stop_reason` (text): 'sufficient_evidence' | 'max_questions' | 'integrity_hold' | etc.
+- `integrity_flags` (jsonb), `integrity_notes` (text)
+- `domain`, `rubric_id`, `confidence_category` (text)
+- `metadata` (jsonb)
+
+Run `docs/migrations/phase1_assessment_runs.sql`.
+
+### rubrics (Phase 1)
+
+- `id` (text, PK), `name`, `domain`, `description`, `version`, `created_at`
+
+### rubric_criteria (Phase 1)
+
+- `id` (uuid, PK), `rubric_id` (FK to rubrics), `code`, `name`, `description`
+- `level_descriptors` (jsonb), `evidence_types` (text[]), `exclusions` (text[])
+
+Run `docs/migrations/phase1_rubrics.sql` and `phase1_rubric_seed.sql`.
+
+### Phase 3 (CAEL / NIST)
+
+- **verifications:** `assessor_id`, `assessor_role`, `cael_standards`, `equity_flags`
+- **user_equity_profiles:** user_id, gender, region, first_language, disability_status
+- **assessment_questions:** `bias_status`, `bias_issues`
+- **question_bias_events:** entry_id, question_number, model_version, status, issues
+
+Run `docs/migrations/phase3_cael_nist.sql`.
+
+### scoring_records (Phase 5)
+
+- run_id, criterion_code, rater_id, score (3=Strong, 2=Adequate, 1=Needs work)
+
+Run `docs/migrations/phase5_scoring_records.sql`.
 
 ## Learning timeline (GET /api/entries)
 

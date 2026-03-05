@@ -4,6 +4,10 @@ export interface ApiError {
   code: string
   message: string
   status: number
+  /** INTEGRITY_HOLD: flags from integrity precheck */
+  integrityFlags?: string[]
+  /** INTEGRITY_HOLD: optional notes */
+  notes?: string
 }
 
 /**
@@ -48,7 +52,7 @@ export async function request<T = unknown>(
     } as ApiError
   }
 
-  let data: { error?: { code: string; message: string } }
+  let data: { error?: { code: string; message: string; integrityFlags?: string[]; notes?: string }; status?: string; integrityFlags?: string[]; notes?: string }
   const text = await res.text()
   try {
     data = text ? JSON.parse(text) : {}
@@ -57,10 +61,16 @@ export async function request<T = unknown>(
   }
 
   if (!res.ok) {
+    const errObj = (data?.error ?? data) as { code?: string; message?: string; integrityFlags?: string[]; notes?: string } | undefined
     const err: ApiError = {
-      code: data?.error?.code ?? 'REQUEST_FAILED',
-      message: data?.error?.message ?? (res.statusText || `Request failed (${res.status})`),
+      code: errObj?.code ?? 'REQUEST_FAILED',
+      message: errObj?.message ?? (res.statusText || `Request failed (${res.status})`),
       status: res.status,
+    }
+    if (data?.status === 'INTEGRITY_HOLD' || errObj?.code === 'INTEGRITY_HOLD') {
+      err.code = 'INTEGRITY_HOLD'
+      err.integrityFlags = data?.integrityFlags ?? errObj?.integrityFlags ?? []
+      err.notes = data?.notes ?? errObj?.notes
     }
     throw err
   }

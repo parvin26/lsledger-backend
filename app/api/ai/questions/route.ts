@@ -3,11 +3,114 @@ import { z } from 'zod'
 import { getUserIdForRequest, GuestConfigError } from '@/lib/auth'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { callAIWithStrictJSON } from '@/lib/ai'
-import { GenerateQuestionsRequest, GenerateQuestionsResponse, ErrorResponse, QuestionGeneration } from '@/types/api'
+import { getRubricForDomain } from '@/lib/rubric'
+import { runIntegrityPrecheck } from '@/lib/integrityPrecheck'
+import { computeQuestionBudget } from '@/lib/questionBudget'
+import { checkQuestionBias } from '@/lib/biasMonitor'
+import { GenerateQuestionsRequest, GenerateQuestionsResponse, ErrorResponse, QuestionGeneration, QuestionGenerationItem, McqQuestionItem } from '@/types/api'
 
 const generateQuestionsSchema = z.object({
   entry_id: z.string().uuid()
 })
+
+function normalizeQuestions(raw: QuestionGeneration): {
+  q1: QuestionGenerationItem
+  q2: QuestionGenerationItem
+  q3: QuestionGenerationItem
+  q4: QuestionGenerationItem
+  mcqs: QuestionGenerationItem[]
+} {
+  const toOpenItem = (q: unknown, layer: number): QuestionGenerationItem => {
+    if (typeof q === 'string') {
+      return {
+        format: 'open',
+        text: q,
+        layer,
+        criterion_code: layerToCriterion(layer),
+        skill_tags: [],
+        evidence_anchors: [],
+        why_asked: { rubric: { rubricId: 'rubric_mba_generic_v1' }, evidenceTrigger: { anchors: [], conceptsDetected: [], missingSignal: [] }, purpose: { type: 'application_check' }, decisionUse: { type: 'screening' }, scoringBasis: { featuresExpected: [], commonFailureModes: [] } },
+      }
+    }
+    const o = q as Record<string, unknown>
+    return {
+      format: (o.format as 'open' | 'mcq') ?? 'open',
+      text: (o.text as string) ?? '',
+      options: Array.isArray(o.options) ? (o.options as string[]) : undefined,
+      correctOptionIndex: typeof o.correctOptionIndex === 'number' ? o.correctOptionIndex : undefined,
+      layer: (o.layer as number) ?? layer,
+      criterion_code: (o.criterion_code as string) ?? layerToCriterion(layer),
+      skill_tags: Array.isArray(o.skill_tags) ? (o.skill_tags as string[]) : [],
+      evidence_anchors: Array.isArray(o.evidence_anchors) ? (o.evidence_anchors as string[]) : [],
+      why_asked: (o.why_asked as Record<string, unknown>) ?? {},
+    }
+  }
+  const toMcqItem = (q: unknown): QuestionGenerationItem | null => {
+    const o = q as Record<string, unknown>
+    const text = (o.text as string)?.trim()
+    const options = Array.isArray(o.options) ? (o.options as string[]) : []
+    const correctOptionIndex = typeof o.correctOptionIndex === 'number' ? o.correctOptionIndex : undefined
+    if (!text || options.length < 2 || correctOptionIndex == null || correctOptionIndex < 0 || correctOptionIndex >= options.length) return null
+    return {
+      format: 'mcq',
+      text,
+      options,
+      correctOptionIndex,
+      layer: undefined,
+      criterion_code: (o.criterion_code as string) ?? 'UNDERSTANDING',
+      skill_tags: Array.isArray(o.skill_tags) ? (o.skill_tags as string[]) : [],
+      evidence_anchors: Array.isArray(o.evidence_anchors) ? (o.evidence_anchors as string[]) : [],
+      why_asked: (o.why_asked as Record<string, unknown>) ?? {},
+    }
+  }
+  const mcqsRaw = Array.isArray(raw.mcqs) ? raw.mcqs : []
+  const mcqs = mcqsRaw.map(toMcqItem).filter((q): q is QuestionGenerationItem => q != null)
+  return {
+    q1: toOpenItem(raw.q1, 1),
+    q2: toOpenItem(raw.q2, 2),
+    q3: toOpenItem(raw.q3, 3),
+    q4: toOpenItem(raw.q4, 4),
+    mcqs,
+  }
+}
+
+function layerToCriterion(layer: number): string {
+  const map: Record<number, string> = { 1: 'UNDERSTANDING', 2: 'APPLICATION', 3: 'REASONING', 4: 'EVIDENCE' }
+  return map[layer] ?? 'UNDERSTANDING'
+}
+
+function buildQuestionRow(
+  entryId: string,
+  questionNumber: number,
+  q: QuestionGenerationItem,
+  rubricId: string,
+  bias: { status: string; issues: string[] }
+): Record<string, unknown> {
+  const baseWhyAsked = typeof q.why_asked === 'object' && q.why_asked !== null ? (q.why_asked as Record<string, unknown>) : {}
+  const govHooks = (baseWhyAsked.governanceHooks as Record<string, unknown>) ?? {}
+  const rubricObj = (baseWhyAsked.rubric as Record<string, unknown>) ?? {}
+  const whyAsked = {
+    ...baseWhyAsked,
+    rubric: { ...rubricObj, rubricId },
+    governanceHooks: { ...govHooks, nistFunctions: ['MEASURE', 'MANAGE'] },
+  }
+  const format = q.format ?? 'open'
+  return {
+    entry_id: entryId,
+    question_number: questionNumber,
+    question_text: q.text,
+    format,
+    options: format === 'mcq' && Array.isArray(q.options) ? q.options : null,
+    correct_option_index: format === 'mcq' && typeof q.correctOptionIndex === 'number' ? q.correctOptionIndex : null,
+    layer_number: q.layer ?? null,
+    criterion_code: q.criterion_code ?? null,
+    skill_tags: q.skill_tags ?? [],
+    evidence_anchors: q.evidence_anchors ?? [],
+    why_asked: whyAsked,
+    bias_status: bias.status,
+    bias_issues: bias.issues,
+  }
+}
 
 async function verifyEntryOwnership(entryId: string, userId: string): Promise<boolean> {
   const { data, error } = await supabaseServer
@@ -43,7 +146,7 @@ export async function POST(request: NextRequest) {
     // Fetch entry and evidence with classification data
     const { data: entryData, error: entryError } = await supabaseServer
       .from('entries')
-      .select('intent_prompt, domain, eligibility')
+      .select('intent_prompt, intent_category, domain, eligibility')
       .eq('id', validated.entry_id)
       .single()
 
@@ -64,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     const { data: evidenceData, error: evidenceError } = await supabaseServer
       .from('evidence')
-      .select('evidence_type, content, transcript')
+      .select('id, evidence_type, content, transcript, provenance, integrity_flags')
       .eq('entry_id', validated.entry_id)
 
     if (evidenceError) {
@@ -78,6 +181,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<ErrorResponse>(
         { error: { code: 'NOT_FOUND', message: 'No evidence found for this entry' } },
         { status: 404 }
+      )
+    }
+
+    // Phase 1: Integrity precheck
+    const evidenceForPrecheck = evidenceData.map((e) => ({
+      id: e.id,
+      evidence_type: e.evidence_type,
+      content: e.content,
+      provenance: e.provenance as Record<string, unknown> | null,
+      integrity_flags: e.integrity_flags as string[] | null,
+    }))
+    const integrityResult = runIntegrityPrecheck(evidenceForPrecheck)
+
+    const questionBudget = computeQuestionBudget(evidenceForPrecheck)
+
+    const { data: runData, error: runInsertError } = await supabaseServer
+      .from('assessment_runs')
+      .insert({
+        entry_id: validated.entry_id,
+        user_id: userId,
+        question_budget: questionBudget,
+        questions_asked: 0,
+        domain: entryData.domain,
+        integrity_flags: integrityResult.flags,
+        integrity_notes: integrityResult.notes,
+        ...(integrityResult.admissible ? {} : { stop_reason: 'integrity_hold', completed_at: new Date().toISOString() }),
+      })
+      .select('id')
+      .single()
+
+    if (runInsertError) {
+      return NextResponse.json<ErrorResponse>(
+        { error: { code: 'DATABASE_ERROR', message: runInsertError.message } },
+        { status: 500 }
+      )
+    }
+
+    for (const e of evidenceData) {
+      await supabaseServer
+        .from('evidence')
+        .update({ integrity_flags: integrityResult.flags, admissible: integrityResult.admissible })
+        .eq('id', e.id)
+    }
+
+    if (!integrityResult.admissible) {
+      return NextResponse.json(
+        {
+          status: 'INTEGRITY_HOLD',
+          integrityFlags: integrityResult.flags,
+          notes: integrityResult.notes,
+        },
+        { status: 400 }
       )
     }
 
@@ -100,35 +255,62 @@ export async function POST(request: NextRequest) {
       .map(e => `${e.evidence_type}: ${(e.content ?? '').substring(0, 500)}`)
       .join('\n\n')
 
-    // Build prompt with all required context (transcript/excerpt for grounded questions)
-    const userPrompt = `Learning evidence summary:\n${evidenceSummary}\n\nTranscript or excerpt from the learner's evidence (read carefully for grounded questions):\n${evidenceText}\n\nPrimary domain: ${entryData.domain}\nIntent: ${entryData.intent_prompt || 'Not provided'}`
+    const rubric = await getRubricForDomain(entryData.domain)
+    const rubricJson = rubric ? JSON.stringify({ id: rubric.id, criteria: rubric.criteria }, null, 2) : '{}'
 
-    // Call AI with strict JSON parsing
-    const questions = await callAIWithStrictJSON<QuestionGeneration>(
+    const context = {
+      domain: entryData.domain ?? 'Generic',
+      intentCategory: entryData.intent_category ?? 'unspecified',
+      intentPrompt: entryData.intent_prompt ?? null,
+      questionBudget: questionBudget,
+    }
+    const userPrompt = `CONTEXT (use for tone and inclusiveness):
+- domain: ${context.domain}
+- intentCategory: ${context.intentCategory}
+- intentPrompt: ${context.intentPrompt ?? 'Not provided'}
+- question_budget: ${context.questionBudget} (generate 4 open questions; if > 4, add ${context.questionBudget - 4} mcq questions)
+
+Learning evidence summary:
+${evidenceSummary}
+
+Transcript or excerpt from the learner's evidence (read carefully for grounded questions):
+${evidenceText}
+
+Rubric (use for criterion_code and why_asked):
+${rubricJson}`
+
+    const rawQuestions = await callAIWithStrictJSON<QuestionGeneration>(
       'questionGenerator.txt',
       userPrompt
     )
 
-    // Validate we got all 4 questions
-    if (!questions.q1 || !questions.q2 || !questions.q3 || !questions.q4) {
+    const questions = normalizeQuestions(rawQuestions)
+
+    if (!questions.q1?.text || !questions.q2?.text || !questions.q3?.text || !questions.q4?.text) {
       return NextResponse.json<ErrorResponse>(
         { error: { code: 'AI_VALIDATION_ERROR', message: 'AI did not return all 4 required questions' } },
         { status: 500 }
       )
     }
 
-    // Store questions in database
+    const rubricId = rubric?.id ?? 'rubric_mba_generic_v1'
+    const modelVersion = process.env.AI_MODEL_NAME ?? 'gpt-4'
+
+    const rows: Record<string, unknown>[] = [
+      buildQuestionRow(validated.entry_id, 1, questions.q1, rubricId, checkQuestionBias(questions.q1.text)),
+      buildQuestionRow(validated.entry_id, 2, questions.q2, rubricId, checkQuestionBias(questions.q2.text)),
+      buildQuestionRow(validated.entry_id, 3, questions.q3, rubricId, checkQuestionBias(questions.q3.text)),
+      buildQuestionRow(validated.entry_id, 4, questions.q4, rubricId, checkQuestionBias(questions.q4.text)),
+    ]
+    let questionNumber = 5
+    for (const mcq of questions.mcqs) {
+      rows.push(buildQuestionRow(validated.entry_id, questionNumber, mcq, rubricId, checkQuestionBias(mcq.text)))
+      questionNumber++
+    }
+
     const { error: storeError } = await supabaseServer
       .from('assessment_questions')
-      .upsert(
-        [
-          { entry_id: validated.entry_id, question_number: 1, question_text: questions.q1 },
-          { entry_id: validated.entry_id, question_number: 2, question_text: questions.q2 },
-          { entry_id: validated.entry_id, question_number: 3, question_text: questions.q3 },
-          { entry_id: validated.entry_id, question_number: 4, question_text: questions.q4 }
-        ],
-        { onConflict: 'entry_id,question_number' }
-      )
+      .upsert(rows, { onConflict: 'entry_id,question_number' })
 
     if (storeError) {
       return NextResponse.json<ErrorResponse>(
@@ -137,11 +319,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    for (let i = 0; i < Math.min(rows.length, 4); i++) {
+      const r = rows[i] as Record<string, unknown>
+      await supabaseServer.from('question_bias_events').insert({
+        entry_id: validated.entry_id,
+        question_number: i + 1,
+        model_version: modelVersion,
+        status: r.bias_status ?? 'passed',
+        issues: r.bias_issues ?? [],
+      })
+    }
+
+    const mcqs: McqQuestionItem[] = questions.mcqs.map((m, i) => ({
+      questionNumber: 5 + i,
+      text: m.text,
+      options: m.options ?? [],
+    }))
+
     return NextResponse.json<GenerateQuestionsResponse>({
-      q1: questions.q1,
-      q2: questions.q2,
-      q3: questions.q3,
-      q4: questions.q4
+      q1: questions.q1.text,
+      q2: questions.q2.text,
+      q3: questions.q3.text,
+      q4: questions.q4.text,
+      ...(mcqs.length > 0 ? { mcqs } : {}),
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

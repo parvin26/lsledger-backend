@@ -4,7 +4,10 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { getVerification } from '@/lib/ledgerApi'
+import type { ApiError } from '@/lib/apiClient'
 import type { VerificationRecord } from '@/types/api'
+import { Badge, CopyLinkRow } from '@/app/components/ui'
+import { getConfidenceVariant } from '@/app/components/ui'
 
 const LAYER_NAMES = ['Explanation', 'Application', 'Trade-offs / limits', 'Reflection / next steps'] as const
 
@@ -27,7 +30,14 @@ export default function VerifyPage() {
         if (!cancelled) setData(json)
       })
       .catch((err) => {
-        if (!cancelled) setError(err?.message ?? 'Failed to load verification')
+        if (!cancelled) {
+          const apiErr = err as ApiError
+          setError(
+            apiErr?.status === 404
+              ? 'Record not found or not available.'
+              : 'Something went wrong.'
+          )
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -37,10 +47,13 @@ export default function VerifyPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
-        <div className="form-card" style={{ paddingTop: '3rem', maxWidth: '800px', margin: '0 auto' }}>
-          <h1 className="heading" style={{ color: 'var(--color-lighthouse-navy)' }}>Capability Review Record</h1>
-          <p style={{ color: 'var(--color-muted-text)' }}>Loading…</p>
+      <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', padding: '2rem 1rem' }}>
+        <div className="max-w-[800px] mx-auto">
+          <header className="bg-lighthouse-navy text-white -mx-4 sm:-mx-6 px-4 sm:px-6 py-6 rounded-none">
+            <h1 className="text-2xl font-semibold tracking-tight text-white">Capability Review Record</h1>
+            <p className="text-sm mt-1 text-white/80">Public record</p>
+          </header>
+          <p className="text-[var(--color-muted-text)] mt-6">Loading…</p>
         </div>
       </div>
     )
@@ -48,13 +61,20 @@ export default function VerifyPage() {
 
   if (error || !data) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
-        <div className="form-card" style={{ paddingTop: '3rem', maxWidth: '800px', margin: '0 auto' }}>
-          <Link href="/" style={{ display: 'inline-block', marginBottom: '1.5rem' }}>
-            <img src="/logo.png" alt="Lighthouse Ledger" width={160} height={180} style={{ display: 'block', objectFit: 'contain' }} />
-          </Link>
-          <h1 className="heading" style={{ color: 'var(--color-lighthouse-navy)' }}>Capability Review Record</h1>
-          <p className="error-msg" style={{ marginTop: '1rem' }}>{error ?? 'Not found'}</p>
+      <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', padding: '2rem 1rem' }}>
+        <div className="max-w-[800px] mx-auto">
+          <header className="bg-lighthouse-navy text-white -mx-4 sm:-mx-6 px-4 sm:px-6 py-6 rounded-none">
+            <h1 className="text-2xl font-semibold tracking-tight text-white">Capability Review Record</h1>
+          </header>
+          <div className="mt-6 p-6 bg-white rounded-xl border border-[var(--color-border-subtle)]">
+            <Link href="/" className="inline-block mb-4">
+              <img src="/logo.svg" alt="Lighthouse Ledger" width={100} height={80} className="block object-contain" />
+            </Link>
+            <p className="error-msg" role="alert">{error ?? 'Record not found or not available.'}</p>
+            <Link href="/" className="text-sm text-[var(--color-signal-blue)] mt-3 inline-block no-underline">
+              ← Back to home
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -69,69 +89,92 @@ export default function VerifyPage() {
     data.layer4_descriptor
   ]
   const hasLayerBreakdown = layerDescriptors.some(Boolean)
+  const verifyUrl = typeof window !== 'undefined' ? `${window.location.origin}/verify/${publicId}` : `/verify/${publicId}`
+
+  const Section = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div className="mb-6">
+      <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-text)] mb-2" style={{ fontVariant: 'small-caps' }}>
+        {label}
+      </div>
+      <div className="text-base" style={{ color: 'var(--color-deep-slate)', lineHeight: 1.6 }}>
+        {children}
+      </div>
+    </div>
+  )
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
-      <div className="ds-card" style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', lineHeight: 1.6 }}>
-        <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>
-          <img src="/logo.png" alt="Lighthouse Ledger" width={160} height={180} style={{ display: 'block', objectFit: 'contain' }} />
-        </Link>
-        <h1 className="heading" style={{ color: 'var(--color-lighthouse-navy)' }}>Capability Review Record</h1>
-        <p className="helper" style={{ color: 'var(--color-muted-text)' }}>Public verification record. No sign-in required.</p>
+    <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', padding: '0 1rem 2rem' }}>
+      <header className="bg-lighthouse-navy text-white -mx-4 sm:-mx-6 px-4 sm:px-6 py-6 rounded-none">
+        <div className="max-w-[800px] mx-auto">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Capability Review Record</h1>
+          <p className="text-sm mt-1 text-white/80">Public record. No sign-in required.</p>
+        </div>
+      </header>
 
-        <div style={{ borderTop: '1px solid var(--color-divider)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Domain</div>
-            <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-deep-slate)' }}>{data.domain}</div>
-          </div>
+      <div className="max-w-[800px] mx-auto -mt-2">
+        <div className="bg-white rounded-xl border border-[var(--color-border-subtle)] shadow-sm p-6 sm:p-8">
+          <Section label="Domain">
+            {data.domain}
+          </Section>
 
           {data.evidence_summary && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>What was reviewed</div>
-              <div style={{ fontSize: '1rem', color: 'var(--color-deep-slate)' }}>{data.evidence_summary}</div>
-            </div>
+            <Section label="What was reviewed">
+              {data.evidence_summary}
+            </Section>
           )}
 
           {data.intent_prompt && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Learning Intent</div>
-              <div style={{ fontSize: '1rem', color: 'var(--color-deep-slate)' }}>{data.intent_prompt}</div>
-            </div>
+            <Section label="Learning intent">
+              {data.intent_prompt}
+            </Section>
           )}
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Capability Summary</div>
-            <div style={{ fontSize: '1rem', color: 'var(--color-deep-slate)' }}>{data.capabilitySummary}</div>
-          </div>
+          <Section label="Capability summary">
+            {data.capabilitySummary}
+          </Section>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Confidence Band</div>
-            <div style={{ fontSize: '1rem', fontWeight: 600, color: isVerified ? 'var(--color-signal-blue)' : 'var(--color-deep-slate)' }}>{data.confidenceBand}</div>
-            {isVerified && <span className="verified-badge" style={{ fontSize: '0.875rem', marginLeft: '0.5rem', color: 'var(--color-signal-blue)' }}>Verified</span>}
+          <div className="mb-6">
+            <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-text)] mb-2" style={{ fontVariant: 'small-caps' }}>
+              Confidence band
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant={getConfidenceVariant(data.confidenceBand)}>
+                {data.confidenceBand}
+              </Badge>
+              {isVerified && (
+                <Badge variant="status-verified">Verified</Badge>
+              )}
+            </div>
           </div>
 
           {hasLayerBreakdown && (
-            <div style={{ marginBottom: '1.5rem' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Layer summary</div>
-              <p style={{ fontSize: '0.9375rem', color: 'var(--color-deep-slate)', margin: 0, lineHeight: 1.7 }}>
-                {LAYER_NAMES.map((name, i) => `${name}: ${layerDescriptors[i] ?? '—'}`).join('; ')}.
-              </p>
-            </div>
+            <Section label="Layer summary">
+              {LAYER_NAMES.map((name, i) => `${name}: ${layerDescriptors[i] ?? '—'}`).join('; ')}.
+            </Section>
           )}
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Record ID</div>
-            <div style={{ fontSize: '0.875rem', fontFamily: 'monospace', color: 'var(--color-muted-text)', wordBreak: 'break-all' }}>{data.public_id}</div>
+          <div className="mb-6">
+            <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-text)] mb-2" style={{ fontVariant: 'small-caps' }}>
+              Record ID
+            </div>
+            <div className="text-sm font-mono text-[var(--color-muted-text)] break-all">
+              {data.public_id}
+            </div>
           </div>
 
-          <div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Date</div>
-            <div style={{ fontSize: '1rem', color: 'var(--color-deep-slate)' }}>{date}</div>
-          </div>
+          <Section label="Date">
+            {date}
+          </Section>
+
+          <CopyLinkRow
+            url={verifyUrl}
+            label="Shareable record link"
+            helperText="Share this link so others can verify this capability review."
+          />
         </div>
 
-        <div style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-divider)', fontSize: '0.875rem', color: 'var(--color-muted-text)', lineHeight: 1.8 }}>
-          <p style={{ margin: 0 }}>
+        <div className="mt-8 pt-6 border-t border-[var(--color-border-subtle)]">
+          <p className="text-sm text-[var(--color-muted-text)] leading-relaxed" style={{ opacity: 0.9 }}>
             <strong>Disclaimer:</strong> This is a capability review record based on submitted evidence and assessment responses.
             It is not a degree, license, certification, or hiring decision. This record reflects a review of demonstrated
             capabilities at the time of assessment and does not constitute formal accreditation or qualification.

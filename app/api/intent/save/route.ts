@@ -3,10 +3,30 @@ import { z } from 'zod'
 import { getUserIdForRequest, GuestConfigError } from '@/lib/auth'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { SaveIntentRequest, SaveIntentResponse, ErrorResponse } from '@/types/api'
+import type { IntentCategory } from '@/types/api'
+
+const INTENT_CATEGORY_LABELS: Record<IntentCategory, string> = {
+  phd_application: 'Apply for a programme or scholarship (e.g. PhD, fellowship).',
+  employer_review: 'Show capability to an employer or client.',
+  self_learning: 'Get feedback for my own learning.',
+  funding_application: 'Support a funding or grant application.',
+  course_progress: 'Progress inside an existing course or training.',
+  other: 'Other (something else).',
+}
+
+const intentCategorySchema = z.enum([
+  'phd_application',
+  'employer_review',
+  'self_learning',
+  'funding_application',
+  'course_progress',
+  'other',
+])
 
 const saveIntentSchema = z.object({
   entry_id: z.string().uuid(),
-  intent_prompt: z.string().min(1)
+  intent_category: intentCategorySchema,
+  intent_details: z.string().optional().nullable(),
 })
 
 async function verifyEntryOwnership(entryId: string, userId: string): Promise<boolean> {
@@ -40,9 +60,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // For backward compatibility: intent_prompt is used by evaluator prompts.
+    // Populate from intent_details if provided, else use human-readable label.
+    const intentPrompt =
+      (validated.intent_details?.trim() && validated.intent_details.trim()) ||
+      INTENT_CATEGORY_LABELS[validated.intent_category]
+
     const { error } = await supabaseServer
       .from('entries')
-      .update({ intent_prompt: validated.intent_prompt })
+      .update({
+        intent_category: validated.intent_category,
+        intent_details: validated.intent_details?.trim() || null,
+        intent_prompt: intentPrompt,
+      })
       .eq('id', validated.entry_id)
 
     if (error) {

@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
         evidence_type: validated.evidence_type,
         content: validated.content,
         ...(transcript !== null && { transcript }),
+        provenance: { ownership_assertion: 'user_submitted' },
       })
       .select('id, created_at')
       .single()

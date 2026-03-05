@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getVerification } from '@/lib/ledgerApi'
+import { TopHeader, Card, Badge, CopyLinkRow } from '@/app/components/ui'
+import { getConfidenceVariant } from '@/app/components/ui'
 
 type LayerDescriptor = 'Strong' | 'Adequate' | 'Needs work'
 const LAYER_NAMES = ['Explanation', 'Application', 'Trade-offs / limits', 'Reflection / next steps'] as const
@@ -65,9 +67,8 @@ function ResultContentInner() {
           layer4_descriptor: data.layer4_descriptor ?? null,
         })
       })
-      .catch((err) => {
+      .catch(() => {
         if (!cancelled) setResult(null)
-        if (typeof console !== 'undefined' && console.error) console.error('Result fallback failed:', err)
       })
     return () => { cancelled = true }
   }, [searchParams])
@@ -80,93 +81,137 @@ function ResultContentInner() {
     ? [result.layer1_descriptor, result.layer2_descriptor, result.layer3_descriptor, result.layer4_descriptor]
     : []
   const hasBreakdown = layerDescriptors.some(Boolean)
+  const recordUrl = typeof window !== 'undefined' ? `${window.location.origin}/record/${publicId}` : `/record/${publicId}`
 
   if (result === undefined) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
-        <div className="form-card" style={{ paddingTop: '2rem', maxWidth: '560px', margin: '0 auto' }}><p style={{ color: 'var(--color-muted-text)' }}>Loading…</p></div>
+      <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', padding: '2rem 1rem' }}>
+        <div className="max-w-[560px] mx-auto">
+          <TopHeader backHref="/dashboard" title="Assessment result" />
+          <p className="text-[var(--color-muted-text)] mt-6">Loading…</p>
+        </div>
       </div>
     )
   }
   if (result === null) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
-        <div className="form-card" style={{ paddingTop: '2rem', maxWidth: '560px', margin: '0 auto' }}>
-          <p className="helper" style={{ color: 'var(--color-muted-text)' }}>No result found. Start from the dashboard.</p>
-          <Link href="/dashboard" className="btn-primary" style={{ display: 'inline-block', marginTop: '0.5rem', textDecoration: 'none' }}>Dashboard</Link>
+      <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', padding: '2rem 1rem' }}>
+        <div className="max-w-[560px] mx-auto">
+          <TopHeader backHref="/dashboard" title="Assessment result" />
+          <p className="helper text-[var(--color-muted-text)] mt-6">No result found. Start from the dashboard.</p>
+          <Link href="/dashboard" className="btn-secondary inline-block mt-3 no-underline">
+            Dashboard
+          </Link>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
-      <div className="form-card" style={{ paddingTop: '0', maxWidth: '560px', margin: '0 auto' }}>
-        <header style={{ marginBottom: '2rem' }}>
-          <Link href="/dashboard" style={{ fontSize: '0.9375rem', color: 'var(--color-muted-text)', textDecoration: 'none' }}>
+    <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', padding: '1rem 1rem 2rem' }}>
+      <div className="max-w-[560px] mx-auto">
+        <header className="bg-lighthouse-navy text-white -mx-4 sm:-mx-6 px-4 sm:px-6 py-6 rounded-none">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1 text-sm font-medium mb-4 text-white/90 no-underline"
+          >
             ← Dashboard
           </Link>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Assessment result</h1>
+          <p className="text-base mt-1 text-white/90">Your answers have been evaluated.</p>
         </header>
-        <h1 className="heading" style={{ color: 'var(--color-lighthouse-navy)' }}>Assessment result</h1>
-        <p className="helper" style={{ color: 'var(--color-muted-text)' }}>Your answers have been evaluated.</p>
 
-        <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-divider)' }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Confidence band</div>
-            <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-deep-slate)' }}>{confidence || '—'}</div>
+        <div className="mt-6 space-y-6">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-text)] mb-2">
+              Confidence band
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant={getConfidenceVariant(confidence)}>
+                {confidence || '—'}
+              </Badge>
+              {confidence && (
+                <span className="text-sm text-[var(--color-muted-text)]">
+                  {confidence === 'High' && 'Strong evidence of capability.'}
+                  {confidence === 'Medium' && 'Reasonable evidence of capability.'}
+                  {confidence === 'Low' && 'Limited evidence. Consider adding more context.'}
+                </span>
+              )}
+            </div>
           </div>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Capability summary</div>
-            <div style={{ fontSize: '1rem', color: 'var(--color-deep-slate)', lineHeight: 1.6 }}>{summary || '—'}</div>
+
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-text)] mb-2">
+              Capability summary
+            </div>
+            <div
+              className="p-4 rounded-lg bg-white border border-[var(--color-border-subtle)]"
+              style={{ color: 'var(--color-deep-slate)', lineHeight: 1.6 }}
+            >
+              {summary || '—'}
+            </div>
           </div>
 
           {hasBreakdown && (
-            <div style={{ marginBottom: '1.25rem' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Breakdown</div>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9375rem', color: 'var(--color-deep-slate)', lineHeight: 1.7 }}>
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-text)] mb-3">
+                Breakdown
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {LAYER_NAMES.map((name, i) => (
-                  <li key={name}>{name}: {layerDescriptors[i] ?? '—'}</li>
+                  <div
+                    key={name}
+                    className="flex justify-between items-center p-3 rounded-lg bg-white border border-[var(--color-border-subtle)]"
+                  >
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-lighthouse-navy)' }}>
+                      {name}
+                    </span>
+                    <span className="text-sm" style={{ color: 'var(--color-deep-slate)' }}>
+                      {layerDescriptors[i] ?? '—'}
+                    </span>
+                  </div>
                 ))}
-              </ul>
-            </div>
-          )}
-
-          {hasVerification && (
-            <div className="ds-card" style={{ marginTop: '1.5rem', padding: '1.25rem' }}>
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', marginBottom: '0.5rem' }}>Verification record</div>
-              <span className="verified-badge" style={{ color: 'var(--color-signal-blue)' }}>Verified</span>
-              {hasBreakdown && (
-                <p style={{ marginTop: '0.75rem', fontSize: '0.9375rem', color: 'var(--color-deep-slate)', lineHeight: 1.6 }}>
-                  {LAYER_NAMES.map((name, i) => `${name.toLowerCase()}: ${layerDescriptors[i] ?? '—'}`).join('; ')}.
-                </p>
-              )}
-              <Link
-                href={`/verify/${publicId}`}
-                style={{ display: 'inline-block', marginTop: '0.75rem', color: 'var(--color-lighthouse-navy)', fontWeight: 600, wordBreak: 'break-all' }}
-              >
-                View verification record
-              </Link>
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', marginBottom: '0.25rem' }}>Shareable verification link</div>
-                <p style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', marginBottom: '0.25rem' }}>
-                  Share this secure link with employers, institutions, or collaborators to verify this capability review.
-                </p>
-                <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--color-muted-text)', wordBreak: 'break-all' }}>
-                  {typeof window !== 'undefined' ? `${window.location.origin}/verify/${publicId}` : `/verify/${publicId}`}
-                </p>
               </div>
             </div>
           )}
 
+          {hasVerification && (
+            <Card variant="verification" className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-[var(--color-muted-text)]">Verification record</span>
+                <Badge variant="status-verified">Verified</Badge>
+              </div>
+              {hasBreakdown && (
+                <p className="text-sm mb-4" style={{ color: 'var(--color-deep-slate)', lineHeight: 1.6 }}>
+                  {LAYER_NAMES.map((name, i) => `${name.toLowerCase()}: ${layerDescriptors[i] ?? '—'}`).join('; ')}.
+                </p>
+              )}
+              <Link
+                href={`/record/${publicId}`}
+                className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold text-white bg-ledger-crimson hover:brightness-110 no-underline mb-4"
+              >
+                View verification record
+              </Link>
+              <CopyLinkRow
+                url={recordUrl}
+                label="Shareable verification link"
+                helperText="Share this secure link with employers, institutions, or collaborators to verify this capability review."
+              />
+            </Card>
+          )}
+
           {!hasVerification && confidence && (
-            <p style={{ marginTop: '1rem', fontSize: '0.9375rem', color: 'var(--color-muted-text)' }}>
+            <p className="text-sm text-[var(--color-muted-text)]">
               No public verification record was issued for this assessment.
             </p>
           )}
         </div>
 
-        <div style={{ marginTop: '2rem' }}>
-          <Link href="/dashboard" className="btn-primary" style={{ display: 'inline-block', textDecoration: 'none' }}>
+        <div className="mt-8">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold border-2 border-lighthouse-navy text-lighthouse-navy hover:bg-lighthouse-navy/5 no-underline"
+          >
             Back to dashboard
           </Link>
         </div>
@@ -178,8 +223,11 @@ function ResultContentInner() {
 export default function ResultPage() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
-        <div className="form-card" style={{ paddingTop: '2rem', maxWidth: '560px', margin: '0 auto' }}><p style={{ color: 'var(--color-muted-text)' }}>Loading…</p></div>
+      <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', padding: '2rem 1rem' }}>
+        <div className="max-w-[560px] mx-auto">
+          <TopHeader backHref="/dashboard" title="Assessment result" />
+          <p className="text-[var(--color-muted-text)] mt-6">Loading…</p>
+        </div>
       </div>
     }>
       <ResultContentInner />

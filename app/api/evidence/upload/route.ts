@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
         original_filename: file.name,
         mime_type: mimeType,
         size: file.size,
+        provenance: { ownership_assertion: 'user_submitted' },
       })
       .select('id, created_at')
       .single()

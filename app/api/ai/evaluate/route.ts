@@ -3,15 +3,21 @@ import { z } from 'zod'
 import { getUserIdForRequest, GuestConfigError } from '@/lib/auth'
 import { supabaseServer } from '@/lib/supabaseServer'
 import { callAIWithStrictJSON } from '@/lib/ai'
+import { getRubricForDomain } from '@/lib/rubric'
 import { sha256 } from '@/lib/hash'
 import { EvaluateAnswersRequest, EvaluateAnswersResponse, ErrorResponse, AnswerEvaluation } from '@/types/api'
 
+const answerItemSchema = z.object({
+  questionNumber: z.number().int().min(1).max(20),
+  answer: z.string().optional(),
+  selectedOptionIndex: z.number().int().min(0).optional(),
+}).refine(
+  (a) => (a.questionNumber <= 4 ? (typeof a.answer === 'string' && a.answer.trim().length > 0) : typeof a.selectedOptionIndex === 'number'),
+  { message: 'Open questions (1-4) need answer; MCQs (5+) need selectedOptionIndex' }
+)
 const evaluateAnswersSchema = z.object({
   entry_id: z.string().uuid(),
-  answers: z.array(z.object({
-    questionNumber: z.number().int().min(1).max(4),
-    answer: z.string().min(1)
-  })).length(4)
+  answers: z.array(answerItemSchema).min(4),
 })
 
 async function verifyEntryOwnership(entryId: string, userId: string): Promise<boolean> {
@@ -45,31 +51,57 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fetch questions
+    // Fetch open questions (1-4) for evaluation; MCQs are stored but not evaluated yet
     const { data: questionsData, error: questionsError } = await supabaseServer
       .from('assessment_questions')
       .select('question_number, question_text')
       .eq('entry_id', validated.entry_id)
       .order('question_number')
 
-    if (questionsError || !questionsData || questionsData.length !== 4) {
+    if (questionsError || !questionsData) {
+      return NextResponse.json<ErrorResponse>(
+        { error: { code: 'NOT_FOUND', message: 'Assessment questions not found' } },
+        { status: 404 }
+      )
+    }
+    const openQuestions = questionsData.filter((q) => q.question_number >= 1 && q.question_number <= 4)
+    if (openQuestions.length !== 4) {
       return NextResponse.json<ErrorResponse>(
         { error: { code: 'NOT_FOUND', message: 'Assessment questions not found' } },
         { status: 404 }
       )
     }
 
+    // Fetch MCQ questions to compute is_mcq_correct
+    const { data: allQuestionsData } = await supabaseServer
+      .from('assessment_questions')
+      .select('question_number, format, correct_option_index')
+      .eq('entry_id', validated.entry_id)
+
+    const mcqQuestions = new Map(
+      (allQuestionsData ?? [])
+        .filter((q) => (q as { format?: string }).format === 'mcq')
+        .map((q) => [q.question_number, q])
+    )
+
     // Store answers in database for auditability
+    const answerRows = validated.answers.map((answer) => {
+      const isMcq = answer.questionNumber >= 5 && typeof answer.selectedOptionIndex === 'number'
+      const mcqQ = mcqQuestions.get(answer.questionNumber) as { correct_option_index?: number } | undefined
+      const isMcqCorrect = isMcq && mcqQ && typeof mcqQ.correct_option_index === 'number'
+        ? answer.selectedOptionIndex === mcqQ.correct_option_index
+        : null
+      return {
+        entry_id: validated.entry_id,
+        question_number: answer.questionNumber,
+        answer_text: isMcq ? String(answer.selectedOptionIndex) : (answer.answer ?? ''),
+        ...(isMcq ? { selected_option_index: answer.selectedOptionIndex, is_mcq_correct: isMcqCorrect } : {}),
+      }
+    })
+
     const { error: answersError } = await supabaseServer
       .from('assessment_answers')
-      .upsert(
-        validated.answers.map(answer => ({
-          entry_id: validated.entry_id,
-          question_number: answer.questionNumber,
-          answer_text: answer.answer
-        })),
-        { onConflict: 'entry_id,question_number' }
-      )
+      .upsert(answerRows, { onConflict: 'entry_id,question_number' })
 
     if (answersError) {
       return NextResponse.json<ErrorResponse>(
@@ -103,15 +135,17 @@ export async function POST(request: NextRequest) {
       .join('\n') || 'No evidence'
     const evidenceSummaryShort = (evidenceData?.[0]?.content ?? '').substring(0, 200).trim() || 'No evidence'
 
-    // Build evaluation prompt with all required context
-    const qaPairs = validated.answers.map((answer) => {
-      const question = questionsData.find(q => q.question_number === answer.questionNumber)
+    const rubric = await getRubricForDomain(entryData.domain)
+    const rubricJson = rubric ? JSON.stringify({ id: rubric.id, criteria: rubric.criteria }, null, 2) : '{}'
+
+    const openAnswers = validated.answers.filter((a) => a.questionNumber >= 1 && a.questionNumber <= 4 && typeof a.answer === 'string')
+    const qaPairs = openAnswers.map((answer) => {
+      const question = openQuestions.find(q => q.question_number === answer.questionNumber)
       return `Question ${answer.questionNumber}: ${question?.question_text || 'Unknown'}\nAnswer: ${answer.answer}`
     }).join('\n\n')
 
-    const userPrompt = `Original evidence:\n${evidenceSummaryFull}\n\nDomain: ${entryData.domain || 'Unknown'}\n\nQuestions and answers:\n${qaPairs}`
+    const userPrompt = `Original evidence:\n${evidenceSummaryFull}\n\nDomain: ${entryData.domain || 'Unknown'}\n\nRubric (use for scoring):\n${rubricJson}\n\nQuestions and answers:\n${qaPairs}`
 
-    // Call AI with strict JSON parsing
     const evaluation = await callAIWithStrictJSON<AnswerEvaluation>(
       'answerEvaluator.txt',
       userPrompt
@@ -149,6 +183,8 @@ export async function POST(request: NextRequest) {
         .eq('id', validated.entry_id)
         .single()
 
+      const rubricId = rubric?.id ?? null
+
       const { data: verificationData, error: verificationError } = await supabaseServer
         .from('verifications')
         .insert({
@@ -162,7 +198,8 @@ export async function POST(request: NextRequest) {
           layer1_descriptor: evaluation.layer1_descriptor,
           layer2_descriptor: evaluation.layer2_descriptor,
           layer3_descriptor: evaluation.layer3_descriptor,
-          layer4_descriptor: evaluation.layer4_descriptor
+          layer4_descriptor: evaluation.layer4_descriptor,
+          rubric_id: rubricId
         })
         .select('id')
         .single()
@@ -175,6 +212,54 @@ export async function POST(request: NextRequest) {
       }
 
       verificationId = verificationData.id
+    }
+
+    const rubricId = rubric?.id ?? null
+    const confidenceCategory = evaluation.confidence_band.toLowerCase() as 'low' | 'medium' | 'high'
+
+    const { data: runData } = await supabaseServer
+      .from('assessment_runs')
+      .select('id')
+      .eq('entry_id', validated.entry_id)
+      .is('completed_at', null)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const LAYER_TO_CRITERION: Record<number, string> = {
+      1: 'UNDERSTANDING',
+      2: 'APPLICATION',
+      3: 'REASONING',
+      4: 'EVIDENCE',
+    }
+    const descriptorToScore = (d: string) => (d === 'Strong' ? 3 : d === 'Adequate' ? 2 : 1)
+    const descriptors = [
+      evaluation.layer1_descriptor,
+      evaluation.layer2_descriptor,
+      evaluation.layer3_descriptor,
+      evaluation.layer4_descriptor,
+    ]
+
+    if (runData) {
+      await supabaseServer
+        .from('assessment_runs')
+        .update({
+          completed_at: new Date().toISOString(),
+          questions_asked: 4,
+          rubric_id: rubricId,
+          confidence_category: confidenceCategory,
+          stop_reason: 'sufficient_evidence'
+        })
+        .eq('id', runData.id)
+
+      for (let i = 0; i < descriptors.length; i++) {
+        await supabaseServer.from('scoring_records').insert({
+          run_id: runData.id,
+          criterion_code: LAYER_TO_CRITERION[i + 1] ?? 'UNDERSTANDING',
+          rater_id: 'ai_v1',
+          score: descriptorToScore(descriptors[i] ?? 'Needs work'),
+        })
+      }
     }
 
     return NextResponse.json<EvaluateAnswersResponse>({

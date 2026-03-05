@@ -1,15 +1,19 @@
-/* Design system aligned with Figma Make: Redesign Lighthouse Ledger Website */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Lighthouse Ledger Design System: clean editorial SaaS, mobile-first */
 
 :root {
-  /* Legacy tokens (kept for compatibility with existing components) */
-  --bg: #f8f7f4;
-  --navy: #1e3a5f;
-  --ledger-crimson: #b71c2a;
+  /* Legacy tokens (kept for compatibility) */
+  --bg: #F6F7FB;
+  --navy: #1A2740;
+  --ledger-crimson: #B71C2A;
   --text: #1a1a1a;
-  --text-muted: #555;
-  --border: #e0e0e0;
+  --text-muted: #717478;
+  --border: #E5E7EB;
 
-  /* Figma theme – layout & typography */
+  /* Figma theme */
   --font-size: 16px;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
@@ -19,25 +23,68 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  /* Lighthouse Ledger palette (Figma Make) */
+  /* Brand palette */
   --color-lighthouse-navy: #1A2740;
   --color-deep-slate: #2E3A4D;
+  --color-ledger-crimson: #B71C2A;
   --color-beacon-red: #C4322D;
   --color-signal-blue: #205B9F;
   --color-sand-background: #F6F1E8;
   --color-card-shell: #FFFFFF;
-  --color-divider: #E0D6C8;
+  --color-divider: #E5E7EB;
   --color-muted-text: #717478;
   --color-success: #179E6A;
   --color-warning: #E0A400;
+
+  /* App UI: cool off-white (no beige) */
+  --color-app-bg: #F6F7FB;
+  --color-info-tint: #E8EEF7;
+  --color-border-subtle: #E5E7EB;
+}
+
+/* Layout safeguards - prevent screen breaking across viewports */
+html {
+  overflow-x: hidden;
+  width: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background-color: var(--color-sand-background);
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #FFFFFF;
   color: var(--color-deep-slate);
   font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Ensure sections and main content use full width */
+main {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Fallback utilities - ensure landing page styles work even if Tailwind has issues */
+.ll-text-navy { color: var(--color-lighthouse-navy) !important; }
+.ll-text-slate { color: var(--color-deep-slate) !important; }
+.ll-text-crimson { color: var(--color-ledger-crimson) !important; }
+.ll-text-blue { color: var(--color-signal-blue) !important; }
+.ll-text-muted { color: var(--color-muted-text) !important; }
+.ll-bg-navy { background-color: var(--color-lighthouse-navy) !important; }
+.ll-bg-crimson { background-color: var(--color-ledger-crimson) !important; }
+.ll-bg-sand { background-color: var(--color-sand-background) !important; }
+.ll-bg-blue { background-color: var(--color-signal-blue) !important; }
+.ll-bg-divider { background-color: var(--color-divider) !important; }
+.ll-border-divider { border-color: var(--color-divider) !important; }
+.ll-border-crimson { border-color: var(--color-ledger-crimson) !important; }
+.ll-hover-bg-sand:hover { background-color: rgba(246, 241, 232, 0.3) !important; }
+.ll-hover-text-navy:hover { color: var(--color-lighthouse-navy) !important; }
+.ll-input-landing::placeholder { color: var(--color-muted-text); }
+.ll-input-landing:focus { box-shadow: 0 0 0 2px rgba(32, 91, 159, 0.5); }
+
+/* Legacy utility classes - kept for compatibility */
 .form-card {
   max-width: 480px;
   margin-left: auto;
@@ -58,7 +105,6 @@ body {
   margin-bottom: 1.25rem;
 }
 
-/* Primary and secondary buttons use design system navy */
 .btn-primary {
   background: var(--color-lighthouse-navy);
   color: #fff;
@@ -68,7 +114,7 @@ body {
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  transition: filter 0.15s ease;
+  transition: filter 0.15s ease, background-color 0.15s ease;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -76,6 +122,37 @@ body {
 }
 
 .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary-brand {
+  background: var(--color-ledger-crimson);
+  color: #fff;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-primary-brand:hover:not(:disabled) {
+  filter: brightness(1.12);
+  background: var(--color-ledger-crimson);
+}
+
+.btn-primary-brand:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.btn-primary-brand:focus-visible {
+  outline: 2px solid var(--color-ledger-crimson);
+  outline-offset: 2px;
+}
+
+.btn-primary-brand:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -91,6 +168,12 @@ body {
   cursor: pointer;
 }
 
+.btn-nav-cta {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .input {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -98,7 +181,7 @@ body {
   border: 1px solid var(--color-divider);
   border-radius: 8px;
   margin-top: 0.25rem;
-  background: rgba(246, 241, 232, 0.3);
+  background: var(--color-card-shell);
 }
 
 .input:focus {
@@ -115,7 +198,7 @@ body {
 }
 
 .verified-badge {
-  color: var(--ledger-crimson);
+  color: var(--color-ledger-crimson);
   font-weight: 600;
 }
 
@@ -125,7 +208,6 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Design system utilities */
 .ds-card {
   background: var(--color-card-shell);
   border: 1px solid var(--color-divider);
@@ -156,10 +238,10 @@ body {
 
 .ds-segmented {
   display: flex;
-  background: var(--color-sand-background);
+  background: var(--color-app-bg);
   padding: 4px;
   border-radius: 8px;
-  border: 1px solid var(--color-divider);
+  border: 1px solid var(--color-border-subtle);
   gap: 0;
 }
 
@@ -181,6 +263,25 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+/* Add form: primary CTA uses signal-blue for selected segment (overridden by inline when used) */
+.ds-segmented-primary button[aria-pressed="true"],
+.ds-segmented-primary button.active {
+  background: var(--color-signal-blue);
+  color: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Add form card: match landing page card style */
+.add-form-card {
+  background: var(--color-card-shell) !important;
+  border: 1px solid var(--color-divider) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+.section-band-sand {
+  background: var(--color-sand-background);
+}
+
 .dashboard-grid {
   display: grid;
   gap: 2rem;
@@ -190,44 +291,4 @@ body {
   .dashboard-grid {
     grid-template-columns: minmax(280px, 360px) 1fr;
   }
-}
-
-.hero-grid {
-  display: grid;
-  gap: 2.5rem;
-  align-items: center;
-  grid-template-columns: 1fr;
-}
-@media (min-width: 768px) {
-  .hero-grid {
-    grid-template-columns: 1fr minmax(320px, 360px);
-  }
-}
-
-/* Homepage logo sizing: preserve aspect ratio, no stretch/crop */
-.home-nav-logo {
-  height: 36px;
-  width: auto;
-  max-width: none;
-  display: block;
-  object-fit: contain;
-}
-@media (max-width: 640px) {
-  .home-nav-logo {
-    height: 28px;
-  }
-}
-.home-hero-logo {
-  height: 48px;
-  width: auto;
-  margin: 0 auto 1.5rem;
-  display: block;
-  object-fit: contain;
-}
-.home-footer-logo {
-  height: 36px;
-  width: auto;
-  margin: 0 auto 0.75rem;
-  display: block;
-  object-fit: contain;
 }

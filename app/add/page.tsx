@@ -6,10 +6,20 @@ import Link from 'next/link'
 import { getAccessToken } from '@/lib/supabaseClient'
 import * as api from '@/lib/ledgerApi'
 import type { ApiError } from '@/lib/apiClient'
-import type { EvidenceItem } from '@/types/api'
+import type { EvidenceItem, IntentCategory } from '@/types/api'
 import { GUEST_MODE_ENABLED } from '@/lib/featureFlags'
+import { TopHeader, Card } from '@/app/components/ui'
 
 const FILE_ACCEPT = '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.png,.jpg,.jpeg,.webp'
+
+const INTENT_OPTIONS: { value: IntentCategory; label: string }[] = [
+  { value: 'phd_application', label: 'Apply for a programme or scholarship (e.g. PhD, fellowship).' },
+  { value: 'employer_review', label: 'Show capability to an employer or client.' },
+  { value: 'self_learning', label: 'Get feedback for my own learning.' },
+  { value: 'funding_application', label: 'Support a funding or grant application.' },
+  { value: 'course_progress', label: 'Progress inside an existing course or training.' },
+  { value: 'other', label: 'Other (something else).' },
+]
 
 /* Small icons for evidence type segmented control */
 function IconLink({ size = 18 }: { size?: number }) {
@@ -63,7 +73,8 @@ function AddForm() {
   const [evidenceType, setEvidenceType] = useState<'link' | 'text' | 'file'>('text')
   const [evidenceContent, setEvidenceContent] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [intentPrompt, setIntentPrompt] = useState('')
+  const [intentCategory, setIntentCategory] = useState<IntentCategory | null>(null)
+  const [intentDetails, setIntentDetails] = useState('')
   const [loading, setLoading] = useState(false)
   const [draftSaving, setDraftSaving] = useState(false)
   const [replaceLoading, setReplaceLoading] = useState(false)
@@ -99,16 +110,38 @@ function AddForm() {
     return () => { cancelled = true }
   }, [entryId])
 
+  useEffect(() => {
+    if (!entryId) return
+    let cancelled = false
+    const tokenPromise = GUEST_MODE_ENABLED ? Promise.resolve(null) : getAccessToken()
+    tokenPromise
+      .then((token) => {
+        if (!GUEST_MODE_ENABLED && !token) return
+        return api.getEntryIntent(token, entryId)
+      })
+      .then((res) => {
+        if (cancelled || !res) return
+        if (res.intent_category) {
+          setIntentCategory(res.intent_category)
+          setIntentDetails(res.intent_details ?? '')
+        } else if (res.intent_prompt) {
+          setIntentCategory('other')
+          setIntentDetails(res.intent_prompt)
+        }
+      })
+      .catch(() => { /* ignore; form starts empty */ })
+    return () => { cancelled = true }
+  }, [entryId])
+
   const existingFile = existingEvidence.find((e) => e.evidence_type === 'file')
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!entryId) return
     const trimmedContent = evidenceContent.trim()
-    const trimmedIntent = intentPrompt.trim()
 
-    if (!trimmedIntent) {
-      setError('Intent is required.')
+    if (!intentCategory) {
+      setError('Please select what you want this review to help with.')
       setEligibilityWarning(null)
       return
     }
@@ -150,7 +183,11 @@ function AddForm() {
       } else if (evidenceType !== 'file') {
         await api.addEvidence(token, { entry_id: entryId, evidence_type: evidenceType, content: trimmedContent })
       }
-      await api.saveIntent(token, { entry_id: entryId, intent_prompt: trimmedIntent })
+      await api.saveIntent(token, {
+        entry_id: entryId,
+        intent_category: intentCategory,
+        intent_details: intentDetails.trim() || null,
+      })
       const analysis = await api.analyzeEntry(token, entryId)
       if (analysis.eligible) {
         router.push(`/assessment?entry_id=${entryId}`)
@@ -179,7 +216,6 @@ function AddForm() {
         return
       }
       const trimmedContent = evidenceContent.trim()
-      const trimmedIntent = intentPrompt.trim()
       if (evidenceType === 'file' && !existingFile && file) {
         const formData = new FormData()
         formData.set('entry_id', entryId)
@@ -188,8 +224,12 @@ function AddForm() {
       } else if (evidenceType !== 'file' && trimmedContent) {
         await api.addEvidence(token, { entry_id: entryId, evidence_type: evidenceType, content: trimmedContent })
       }
-      if (trimmedIntent) {
-        await api.saveIntent(token, { entry_id: entryId, intent_prompt: trimmedIntent })
+      if (intentCategory) {
+        await api.saveIntent(token, {
+          entry_id: entryId,
+          intent_category: intentCategory,
+          intent_details: intentDetails.trim() || null,
+        })
       }
     } catch (err) {
       const e = err as ApiError
@@ -237,7 +277,7 @@ function AddForm() {
   if (!entryId) return null
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', padding: '2rem 1.5rem', paddingTop: '2.5rem' }}>
       <div style={{ maxWidth: '720px', margin: '0 auto' }}>
         <Link
           href="/dashboard"
@@ -260,13 +300,14 @@ function AddForm() {
               right: 0,
               fontSize: '0.75rem',
               fontWeight: 500,
-              color: 'var(--color-deep-slate)',
+              color: 'var(--color-lighthouse-navy)',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               background: 'var(--color-card-shell)',
               padding: '0.25rem 0.75rem',
               borderRadius: 9999,
-              border: '2px solid var(--color-deep-slate)',
+              border: '1px solid var(--color-divider)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             }}
           >
             STEP 1 OF 3 · EVIDENCE & INTENT
@@ -276,6 +317,12 @@ function AddForm() {
         {error && (
           <div style={{ marginBottom: '1rem' }}>
             <p className="error-msg" role="alert">{error}</p>
+            {(error.includes('mime_type') || error.includes('schema cache')) && (
+              <p style={{ fontSize: '0.875rem', marginTop: '0.5rem', color: 'var(--color-deep-slate)' }}>
+                Run the database migration: add <code>SUPABASE_DB_PASSWORD</code> to .env.local and run <code>npm run migrate</code>, or run the SQL in{' '}
+                <a href="https://supabase.com/dashboard/project/ukhaafefmhadggcbgnew/sql/new" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-ledger-crimson)' }}>Supabase SQL Editor</a>. See <code>docs/MIGRATE_QUICK.md</code>.
+              </p>
+            )}
             <button type="button" onClick={() => setError(null)} className="btn-secondary" style={{ marginTop: '0.5rem' }}>
               Back to evidence
             </button>
@@ -289,7 +336,11 @@ function AddForm() {
               <button type="button" onClick={() => setEligibilityWarning(null)} className="btn-secondary">
                 Back to evidence
               </button>
-              <button type="button" onClick={goToAssessment} className="btn-primary">
+              <button
+                type="button"
+                onClick={goToAssessment}
+                className="btn-primary-brand"
+              >
                 Continue anyway
               </button>
             </div>
@@ -297,13 +348,16 @@ function AddForm() {
         )}
 
         {!error && (
-          <form onSubmit={handleSubmit}>
-            <div className="ds-card" style={{ padding: '1.5rem 2rem', marginBottom: '1.5rem' }}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label className="label" style={{ marginBottom: '0.5rem', display: 'block', color: 'var(--color-lighthouse-navy)', fontSize: '0.875rem' }}>
+          <form id="add-form" onSubmit={handleSubmit}>
+            <Card variant="default" className="p-5 sm:p-6 mt-6 add-form-card">
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-lg font-semibold text-[var(--color-muted-text)]">01</span>
+                <h2 className="text-base font-semibold" style={{ color: 'var(--color-lighthouse-navy)' }}>
                   Evidence type
-                </label>
-                <div className="ds-segmented" role="group" aria-label="Evidence type">
+                </h2>
+              </div>
+              <div className="mb-5">
+                <div className="ds-segmented ds-segmented-primary" role="group" aria-label="Evidence type">
                   {(['link', 'text', 'file'] as const).map((type) => (
                     <button
                       key={type}
@@ -311,7 +365,12 @@ function AddForm() {
                       className={evidenceType === type ? 'active' : ''}
                       aria-pressed={evidenceType === type}
                       onClick={() => setEvidenceType(type)}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.375rem',
+                      }}
                     >
                       {type === 'link' && <IconLink size={16} />}
                       {type === 'text' && <IconText size={16} />}
@@ -320,7 +379,7 @@ function AddForm() {
                     </button>
                   ))}
                 </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)', marginTop: '0.5rem' }}>
+                <p className="text-xs text-[var(--color-muted-text)] mt-2">
                   Use a link for GitHub, decks, videos, or shared docs.
                 </p>
               </div>
@@ -339,7 +398,7 @@ function AddForm() {
                       placeholder="https://…"
                       disabled={loading}
                       required
-                      style={{ background: 'rgba(246, 241, 232, 0.3)' }}
+                      style={{ background: 'var(--color-card-shell)', borderColor: 'var(--color-border-subtle)' }}
                     />
                   </div>
                   {isYouTubeUrl(evidenceContent) && (
@@ -363,7 +422,7 @@ function AddForm() {
                     placeholder="Describe your learning or paste a link title…"
                     disabled={loading}
                     required
-                    style={{ background: 'rgba(246, 241, 232, 0.3)' }}
+                    style={{ background: 'var(--color-card-shell)', borderColor: 'var(--color-border-subtle)' }}
                   />
                 </div>
               )}
@@ -373,7 +432,7 @@ function AddForm() {
                   {evidenceLoading ? (
                     <p style={{ fontSize: '0.9375rem', color: 'var(--color-muted-text)' }}>Loading…</p>
                   ) : existingFile ? (
-                    <div style={{ padding: '0.75rem', border: '1px solid var(--color-divider)', borderRadius: 8, background: 'var(--color-sand-background)' }}>
+                    <div className="p-3 rounded-lg border" style={{ background: 'var(--color-app-bg)', borderColor: 'var(--color-border-subtle)' }}>
                       <span style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)' }}>Current file: </span>
                       <span style={{ fontWeight: 500 }}>{existingFile.original_filename ?? existingFile.content ?? 'File'}</span>
                       <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -414,7 +473,8 @@ function AddForm() {
                       <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-lighthouse-navy)', marginBottom: '0.25rem' }}>
                         Drag a file here or choose from your device
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)' }}>PDF, PNG, JPG up to 10MB</span>
+                      <span className="block text-xs text-[var(--color-muted-text)]">PDF, DOC, PPT, XLS, TXT, MD, PNG, JPG up to 10MB</span>
+                      <span className="block text-xs text-[var(--color-muted-text)] mt-1">We use your evidence to ask relevant questions about what you learned.</span>
                       {file && <p style={{ fontSize: '0.875rem', color: 'var(--color-muted-text)', marginTop: '0.5rem' }}>{file.name} ({(file.size / 1024).toFixed(1)} KB)</p>}
                     </label>
                   )}
@@ -423,40 +483,87 @@ function AddForm() {
 
               <div style={{ marginBottom: '1.5rem' }}>
                 <label className="label" style={{ marginBottom: '0.25rem', display: 'block', color: 'var(--color-lighthouse-navy)', fontSize: '0.875rem' }}>
-                  Intent (why you want this reviewed)
+                  What do you want this review to help with?
                 </label>
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)', marginBottom: '0.5rem' }}>
-                  Share the context, goal, or challenge. This helps reviewers understand your depth.
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)', marginBottom: '0.75rem' }}>
+                  This helps us understand how you plan to use the capability record.
                 </p>
-                <textarea
-                  value={intentPrompt}
-                  onChange={(e) => { setIntentPrompt(e.target.value); setError(null); setEligibilityWarning(null) }}
-                  className="input"
-                  rows={4}
-                  style={{ minHeight: '100px', resize: 'vertical', background: 'rgba(246, 241, 232, 0.3)' }}
-                  placeholder='e.g. "Learning for a client project. Tried a new approach to error handling and want feedback on my reasoning."'
-                  disabled={loading}
-                  required
-                />
+                <div role="group" aria-label="Intent category" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {INTENT_OPTIONS.map((opt) => (
+                    <label
+                      key={opt.value}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.5rem',
+                        cursor: 'pointer',
+                        fontSize: '0.9375rem',
+                        color: 'var(--color-deep-slate)',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="intent_category"
+                        value={opt.value}
+                        checked={intentCategory === opt.value}
+                        onChange={() => {
+                          setIntentCategory(opt.value)
+                          setError(null)
+                          setEligibilityWarning(null)
+                        }}
+                        disabled={loading}
+                        style={{ marginTop: '0.25rem', flexShrink: 0 }}
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div style={{ marginTop: '1rem' }}>
+                  <label className="label" style={{ marginBottom: '0.25rem', display: 'block', color: 'var(--color-lighthouse-navy)', fontSize: '0.875rem' }}>
+                    Other / extra context
+                  </label>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)', marginBottom: '0.5rem' }}>
+                    Use your own words if you want to add more context.
+                  </p>
+                  <textarea
+                    value={intentDetails}
+                    onChange={(e) => { setIntentDetails(e.target.value); setError(null); setEligibilityWarning(null) }}
+                    className="input"
+                    rows={2}
+                    style={{ minHeight: '60px', resize: 'vertical', background: 'var(--color-card-shell)', borderColor: 'var(--color-border-subtle)' }}
+                    placeholder="Describe in your own words (optional)."
+                    disabled={loading}
+                  />
+                </div>
               </div>
 
-              <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--color-divider)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem' }}>
+              <div className="pt-5 mt-5 flex flex-wrap items-center gap-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold border-2 transition-all disabled:opacity-60"
+                  style={{
+                    borderColor: 'var(--color-lighthouse-navy)',
+                    color: 'var(--color-lighthouse-navy)',
+                    background: 'transparent',
+                  }}
                   disabled={loading || draftSaving}
                   onClick={handleSaveDraft}
                 >
                   {draftSaving ? 'Saving…' : 'Save as draft'}
                 </button>
-                <button type="submit" className="btn-primary" disabled={loading}>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ background: 'var(--color-ledger-crimson)' }}
+                  disabled={loading || !intentCategory}
+                >
                   {loading ? 'Saving and analyzing…' : 'Save and continue'}
                 </button>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)', marginLeft: 'auto' }}>
+                <span className="text-xs text-[var(--color-muted-text)] ml-auto">
                   You can edit this entry before it&apos;s sent for review.
                 </span>
               </div>
-            </div>
+            </Card>
           </form>
         )}
       </div>

@@ -92,12 +92,12 @@ export default function DashboardPage() {
   const showMainContent = GUEST_MODE_ENABLED || session !== null
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', color: 'var(--color-deep-slate)' }}>
-      {/* Header – keep as-is per prompt */}
+    <div className="min-h-screen" style={{ background: 'var(--color-app-bg)', color: 'var(--color-deep-slate)' }}>
+      {/* Session bar – logo/nav come from root layout Header */}
       <header
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           padding: '1rem 1.5rem',
           maxWidth: '1120px',
@@ -106,10 +106,6 @@ export default function DashboardPage() {
           gap: '0.75rem',
         }}
       >
-        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'inherit' }}>
-          <img src="/logo.png" alt="" width={40} height={46} style={{ display: 'block', objectFit: 'contain' }} />
-          <span style={{ fontWeight: 600, fontSize: '1.125rem', color: 'var(--color-lighthouse-navy)' }}>Lighthouse Ledger</span>
-        </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span
             style={{
@@ -149,7 +145,7 @@ export default function DashboardPage() {
           <div className="dashboard-grid">
             {/* Left panel: Start a new entry */}
             <div>
-              <div className="ds-card" style={{ padding: '1.5rem', position: 'sticky', top: '1.5rem' }}>
+              <div className="bg-white rounded-xl border border-[var(--color-border-subtle)] shadow-sm p-6 sticky top-6">
                 <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-lighthouse-navy)' }}>
                   Start a new entry
                 </h2>
@@ -159,16 +155,16 @@ export default function DashboardPage() {
                 {error && <p className="error-msg" role="alert" style={{ marginBottom: '0.75rem' }}>{error}</p>}
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="inline-flex items-center justify-center w-full min-h-[44px] px-5 py-2.5 rounded-lg font-semibold text-white bg-ledger-crimson hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
                   disabled={loading}
                   onClick={handleCreateEntry}
                   data-create-entry
-                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                  style={{ marginBottom: '0.5rem' }}
                 >
-                  {loading ? 'Creating…' : '+ Create entry'}
+                  {loading ? 'Creating…' : 'Create record'}
                 </button>
                 <p style={{ fontSize: '0.75rem', color: 'var(--color-muted-text)', textAlign: 'center', marginBottom: '1rem' }}>
-                  Takes about 3–5 minutes.
+                  Takes about 3 to 5 minutes.
                 </p>
                 <div style={{ textAlign: 'center' }}>
                   <Link
@@ -212,8 +208,7 @@ export default function DashboardPage() {
           onClick={() => setDetailEntry(null)}
         >
           <div
-            className="ds-card"
-            style={{ maxWidth: '400px', padding: '1.5rem' }}
+            className="bg-white rounded-xl border border-[var(--color-border-subtle)] shadow-lg max-w-[400px] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="entry-detail-title" style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-lighthouse-navy)' }}>
@@ -230,17 +225,17 @@ export default function DashboardPage() {
                 ? 'Complete the assessment to get a verification link.'
                 : 'This entry has not been reviewed yet. Add evidence and complete the assessment to get a verification link.'}
             </p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div className="flex gap-2 flex-wrap">
               {detailEntry.status === 'Under review' ? (
-                <Link href={`/assessment?entry_id=${detailEntry.id}`} className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                <Link href={`/assessment?entry_id=${detailEntry.id}`} className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold text-white bg-ledger-crimson hover:brightness-110 no-underline">
                   Continue assessment
                 </Link>
               ) : (
-                <Link href={`/add?entry_id=${detailEntry.id}`} className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                <Link href={`/add?entry_id=${detailEntry.id}`} className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold text-white bg-ledger-crimson hover:brightness-110 no-underline">
                   {detailEntry.file_evidence_id ? 'View / replace file & continue' : 'Add evidence & continue'}
                 </Link>
               )}
-              <button type="button" onClick={() => setDetailEntry(null)} className="btn-secondary">
+              <button type="button" onClick={() => setDetailEntry(null)} className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold border-2 border-lighthouse-navy text-lighthouse-navy hover:bg-lighthouse-navy/5">
                 Close
               </button>
             </div>

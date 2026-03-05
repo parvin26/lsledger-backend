@@ -100,7 +100,7 @@ export function DashboardTimeline({ onEntryClick }: DashboardTimelineProps) {
         if (!cancelled) {
           setEntries([])
           const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : ''
-          const friendlyFallback = "We couldn't load your recent entries. If this keeps happening, check your connection or try again later—the service may be temporarily unavailable."
+          const friendlyFallback = "We couldn't load your recent entries. If this keeps happening, check your connection or try again later. The service may be temporarily unavailable."
           setTimelineError(
             msg && msg !== 'Failed to fetch' && !msg.toLowerCase().includes('failed to fetch')
               ? msg
@@ -144,13 +144,13 @@ export function DashboardTimeline({ onEntryClick }: DashboardTimelineProps) {
           {timelineError}
         </p>
       ) : !hasEntries ? (
-        <div className="ds-card" style={{ padding: '3rem', textAlign: 'center' }}>
+        <div className="bg-white rounded-xl border border-[var(--color-border-subtle)] shadow-sm p-12 text-center">
           <div
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              background: 'var(--color-sand-background)',
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          background: 'var(--color-app-bg)',
               margin: '0 auto 1rem',
               display: 'flex',
               alignItems: 'center',
@@ -167,12 +167,12 @@ export function DashboardTimeline({ onEntryClick }: DashboardTimelineProps) {
           </p>
           <button
             type="button"
-            className="btn-primary"
+            className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg font-semibold text-white bg-ledger-crimson hover:brightness-110"
+            style={{ fontSize: '0.875rem' }}
             onClick={() => {
               const createBtn = document.querySelector('[data-create-entry]') as HTMLButtonElement | null
               createBtn?.click()
             }}
-            style={{ fontSize: '0.875rem' }}
           >
             Create your first entry
           </button>
@@ -201,25 +201,11 @@ export function DashboardTimeline({ onEntryClick }: DashboardTimelineProps) {
                       <button
                         type="button"
                         onClick={() => handleEntryClick(entry)}
+                        className="block w-full text-left p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md"
                         style={{
-                          display: 'block',
-                          width: '100%',
-                          textAlign: 'left',
-                          padding: '1rem',
                           background: 'var(--color-card-shell)',
-                          border: '1px solid var(--color-divider)',
-                          borderRadius: 12,
-                          cursor: 'pointer',
+                          borderColor: 'var(--color-border-subtle)',
                           boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                          transition: 'box-shadow 0.15s ease, background 0.15s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.9)'
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'var(--color-card-shell)'
-                          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)'
                         }}
                       >
                         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem' }}>

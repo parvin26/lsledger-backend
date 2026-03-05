@@ -37,7 +37,7 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', background: 'var(--color-sand-background)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1.5rem' }}>
       <div className="form-card" style={{ paddingTop: '0', width: '100%', maxWidth: '480px' }}>
         <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>
-          <img src="/logo.png" alt="Lighthouse Ledger" width={160} height={180} style={{ display: 'block', objectFit: 'contain' }} />
+          <img src="/logo.svg" alt="Lighthouse Ledger" width={100} height={80} style={{ display: 'block', objectFit: 'contain' }} />
         </Link>
         <h1 className="heading" style={{ color: 'var(--color-lighthouse-navy)' }}>Sign in</h1>
         <p className="helper" style={{ color: 'var(--color-muted-text)' }}>Sign in to your account to continue.</p>

@@ -50,7 +50,7 @@ export function NavBar() {
       }}
     >
       <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'inherit' }}>
-        <img src="/logo.png" alt="" className="home-nav-logo" width={40} height={46} style={{ objectFit: 'contain' }} />
+        <img src="/logo.svg" alt="" className="home-nav-logo" width={100} height={80} style={{ objectFit: 'contain' }} />
         <span style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--color-lighthouse-navy)' }}>Lighthouse Ledger</span>
       </Link>
       <nav style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
@@ -65,11 +65,10 @@ export function NavBar() {
         </Link>
         <button
           type="button"
-          className="btn-primary"
+          className="btn-secondary btn-nav-cta"
           onClick={handleStartRecording}
-          style={{ padding: '0.5rem 1rem', fontSize: '0.9375rem' }}
         >
-          Start Recording
+          Start a record
         </button>
       </nav>
     </header>
